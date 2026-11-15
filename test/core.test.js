@@ -2,7 +2,7 @@
 const load = require('./load.js');
 const E = load(['Game', 'newDeal', 'dealCards', 'auctionInfo', 'isLegalCall', 'legalCalls', 'parseCall', 'callName',
   'scoreContract', 'trickWinner', 'mkCard', 'cardSuit', 'cardRank', 'mulberry32', 'boardDealer', 'boardVul',
-  'publicPlayState', 'PASS', 'DBL', 'RDBL', 'mkBid', 'NT', 'seatVul']);
+  'publicPlayState', 'PASS', 'DBL', 'RDBL', 'mkBid', 'NT', 'seatVul', 'impsFor']);
 
 let failed = 0, checks = 0;
 function eq(actual, expected, label) {
@@ -59,6 +59,13 @@ eq(E.scoreContract(4, S, 2, false, 7), -1000, 'XX down 3 nv');
 eq(E.scoreContract(4, S, 2, true, 8), -1000, 'XX down 2 vul');
 eq(E.scoreContract(7, N, 1, true, 0), -3800, '7NTX down 13 vul');
 eq(E.scoreContract(7, N, 1, false, 0), -3500, '7NTX down 13 nv');
+
+// ---- IMP scale ----
+eq([0, 10, 20, 40, 50, 80, 90, 120, 130, 160, 170, 210, 220, 260, 270, 310, 320, 360, 370, 420, 430, 490, 500, 590, 600, 740, 750, 890, 900, 1090,
+  1100, 1290, 1300, 1490, 1500, 1740, 1750, 1990, 2000, 2240, 2250, 2490, 2500, 2990, 3000, 3490, 3500, 3990, 4000, 7600].map(E.impsFor),
+[0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14,
+  15, 15, 16, 16, 17, 17, 18, 18, 19, 19, 20, 20, 21, 21, 22, 22, 23, 23, 24, 24], 'IMP scale boundaries');
+eq([E.impsFor(-30), E.impsFor(-620), E.impsFor(-10)], [-1, -12, 0], 'IMPs are signed');
 
 // ---- board rotation ----
 eq([1, 2, 3, 4, 5, 16, 17].map(E.boardDealer), [0, 1, 2, 3, 0, 3, 0], 'dealers');

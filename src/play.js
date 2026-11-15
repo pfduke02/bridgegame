@@ -55,6 +55,18 @@ function playMakeCtx(view) {
     for (let s = 0; s < 4; s++) { if (voidIn[h][s]) k.lenMax[s] = 0; if (k.lenMin[s] > k.lenMax[s]) k.lenMin[s] = k.lenMax[s]; }
     return k;
   });
+  // What the opening lead says about a hidden leader: an honour is led from touching honours
+  // (so the card just below it is probably there too), a small card against notrump from a 4+ card suit.
+  const first = ps.tricks.length ? ps.tricks[0] : { leader: ps.leader, cards: ps.cur };
+  if (first.cards.length && !vis[first.leader]) {
+    const k = cons[hidden.indexOf(first.leader)], lc = first.cards[0], ls = cardSuit(lc), lr = cardRank(lc);
+    if (ls !== ps.trump) {
+      if (lr >= 8 && lr <= 11) { if (unknown.indexOf(mkCard(ls, lr - 1)) >= 0) k.want = mkCard(ls, lr - 1); }
+      else if (ps.trump === NT && lr <= 5 && !voidIn[first.leader][ls]) {
+        k.lenMin[ls] = Math.min(k.lenMax[ls], Math.max(k.lenMin[ls], 4 - playedLen[first.leader][ls]));
+      }
+    }
+  }
   const c = ps.contract, sign = ((turn ^ ps.declarer) & 1) === 0 ? 1 : -1;
   const util = [];
   for (let k = 0; k <= 13; k++) util.push(sign * scoreContract(c.level, c.strain, c.doubled, seatVul(view.vul, ps.declarer), k));
@@ -105,7 +117,8 @@ function playSample(ctx, rnd) {
   // nudge the layout toward what the bidding promised (swap cards between hidden hands while it helps)
   const len = out.map(function () { return [0, 0, 0, 0]; }), hcp = out.map(function () { return 0; });
   for (let i = 0; i < n; i++) for (const c of out[i]) { len[i][cardSuit(c)]++; if (cardRank(c) > 8) hcp[i] += cardRank(c) - 8; }
-  const v = out.map(function (h, i) { return playViolation(ctx.cons[i], len[i], hcp[i]); });
+  const has = out.map(function (h, i) { return ctx.cons[i].want === undefined || h.indexOf(ctx.cons[i].want) >= 0; });
+  const v = out.map(function (h, i) { return playViolation(ctx.cons[i], len[i], hcp[i]) + (has[i] ? 0 : 2); });
   let total = 0;
   for (let i = 0; i < n; i++) total += v[i];
   for (let it = 0; it < 240 && total > 0 && n > 1; it++) {
@@ -118,8 +131,11 @@ function playSample(ctx, rnd) {
     if (ctx.voidIn[H[b]][sa] || ctx.voidIn[H[a]][sb]) continue;
     const ha = cardRank(ca) > 8 ? cardRank(ca) - 8 : 0, hb = cardRank(cb) > 8 ? cardRank(cb) - 8 : 0;
     len[a][sa]--; len[a][sb]++; len[b][sb]--; len[b][sa]++;
-    const na = playViolation(ctx.cons[a], len[a], hcp[a] - ha + hb), nb = playViolation(ctx.cons[b], len[b], hcp[b] - hb + ha);
+    const wa = ctx.cons[a].want, wb = ctx.cons[b].want;
+    const hasA = wa === undefined || cb === wa || (has[a] && ca !== wa), hasB = wb === undefined || ca === wb || (has[b] && cb !== wb);
+    const na = playViolation(ctx.cons[a], len[a], hcp[a] - ha + hb) + (hasA ? 0 : 2), nb = playViolation(ctx.cons[b], len[b], hcp[b] - hb + ha) + (hasB ? 0 : 2);
     if (na + nb <= v[a] + v[b]) {
+      has[a] = hasA; has[b] = hasB;
       out[a][ia] = cb; out[b][ib] = ca; hcp[a] += hb - ha; hcp[b] += ha - hb;
       total += na + nb - v[a] - v[b]; v[a] = na; v[b] = nb;
     } else { len[a][sa]++; len[a][sb]--; len[b][sb]++; len[b][sa]--; }
@@ -242,6 +258,9 @@ function playHeur(ctx, card) {
   if (ctx.isDefender) {
     const tr = ctx.ps.tricks;
     if (tr.length && cardSuit(tr[0].cards[0]) === s && s !== trump) h += 0.4;        // carry on with the suit our side led
+    for (let i = tr.length - 1; i >= 1; i--) {                                        // or return the suit partner switched to
+      if (tr[i].leader === (ctx.turn ^ 2)) { if (cardSuit(tr[i].cards[0]) === s && s !== trump) h += 0.3; break; }
+    }
   } else if (s === trump) {
     let out = 0;
     for (const c of ctx.unknown) if (cardSuit(c) === trump) out++;

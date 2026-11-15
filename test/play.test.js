@@ -61,5 +61,28 @@ for (let t = 0; t < 60; t++) {
     ok(Array.isArray(v1.dummyHand) && v1.dummyHand.length === 13, 'dummy is shown after the opening lead');
   }
 }
+// four bots replay a deal (the comparison table): a complete, legal, correctly scored record
+{
+  const E2 = load(['Game', 'newDeal', 'mulberry32', 'aiStartJob', 'scoreContract', 'seatVul']);
+  const r2 = E2.mulberry32(314);
+  for (let t = 0; t < 3; t++) {
+    const deal = E2.newDeal(1 + t, r2);
+    const job = E2.aiStartJob({ type: 'replay', deal: deal, level: 1, seed: 11 + t });
+    let steps = 0, sawProgress = false;
+    while (!job.step(50)) { steps++; if (job.progress && job.progress.phase === 'play') sawProgress = true; if (steps > 20000) break; }
+    const r = job.result;
+    ok(!!r, 'replay finishes');
+    if (!r) continue;
+    const g = new E2.Game({ board: deal.board, dealer: deal.dealer, vul: deal.vul, hands: deal.hands, calls: r.calls, plays: r.plays });   // throws if any call or card was illegal
+    ok(g.phase === 'over', 'replayed record is a complete deal');
+    ok(g.result.nsScore === r.nsScore && g.result.declTricks === r.declTricks, 'replay result matches its own record');
+    if (r.contract) {
+      ok(r.plays.length === 52, 'all 52 cards played');
+      ok(sawProgress, 'progress is reported during the play');
+      const sc = E2.scoreContract(r.contract.level, r.contract.strain, r.contract.doubled, E2.seatVul(deal.vul, r.contract.declarer), r.declTricks);
+      ok(((r.contract.declarer & 1) === 0 ? sc : -sc) === r.nsScore, 'replay score follows the scoring rules');
+    } else ok(r.passedOut && r.nsScore === 0, 'passed-out replay scores nothing');
+  }
+}
 console.log('positions ' + positions + ', samples ' + samples + ', ' + checks + ' checks, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

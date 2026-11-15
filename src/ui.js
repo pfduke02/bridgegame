@@ -987,6 +987,19 @@
       parts.push(v);
       const why = compareWhy(h);
       if (why) parts.push(el('p', 'cmp-note', why));
+      if (Array.isArray(h.botCalls) && h.botCalls.length) {             // the bots' auction, on request
+        const det = el('details', 'cmp-auction');
+        det.appendChild(el('summary', '', 'How the bots bid'));
+        const head = el('div', 'au-head');
+        AU_ORDER.forEach(function (seat) { head.appendChild(el('span', E.seatVul(g.vul, seat) ? 'vul' : '', E.SEAT_NAME[seat])); });
+        const calls = el('div', 'au-body');
+        for (let i = AU_ORDER.indexOf(g.dealer); i > 0; i--) calls.appendChild(el('span', 'au-blank'));
+        h.botCalls.forEach(function (call) { calls.appendChild(callChip(call)); });
+        det.appendChild(head); det.appendChild(calls);
+        det.open = !!CMP.auctionOpen;
+        det.addEventListener('toggle', function () { CMP.auctionOpen = det.open; });
+        parts.push(det);
+      }
     } else if (CMP.busy && CMP.busy.board === g.board && CMP.busy.kind === 'replay') {
       const pr = CMP.progress, playing = !!pr && pr.phase !== 'auction', t = playing ? Math.min(13, pr.tricks) : 0;
       const w = el('div', 'cmp-wait');
@@ -1202,7 +1215,7 @@
         lastBid: g.auction.lastBid, lastBidder: g.auction.lastBidder, doubled: g.auction.doubled,
         humanToAct: humanToAct(), hold: !!S.hold, showAuction: S.showAuction, thinking: S.thinking,
         sheet: S.sheet, hint: S.hint, history: S.history.slice(), settings: Object.assign({}, S.settings),
-        usingWorker: AIClient.usingWorker(), comparing: !!CMP.busy, compareQueue: CMP.queue.length
+        usingWorker: AIClient.usingWorker(), comparing: !!CMP.busy, comparingKind: CMP.busy ? CMP.busy.kind : '', compareQueue: CMP.queue.length
       };
     }
   };

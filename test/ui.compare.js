@@ -55,7 +55,7 @@ const E = load(['Game', 'newDeal', 'mulberry32', 'aiRun', 'scoreContract', 'imps
   await page.waitForSelector('#cmp-verdict', { timeout: 15000 });
   const st2 = await page.evaluate(function () { return window.PocketBridge.state(); });
   ok(JSON.stringify(st2.history[0].bots) === JSON.stringify(h.bots), 'comparison survives a reload');
-  ok(!st2.comparing, 'no replay is started again after a reload');
+  ok(!st2.comparing, 'no replay is started again after a reload' + (st2.comparing ? ' (kind=' + st2.comparingKind + ', dd=' + JSON.stringify(st2.history[0].dd) + ', queue=' + st2.compareQueue + ', recorded history=' + JSON.stringify(st2.history[0]) + ')' : ''));
   // next deal starts normally while nothing is left running
   await page.locator('#res-next').click();
   await page.waitForFunction(function () { return window.PocketBridge.state().board === 2; }, null, { timeout: 10000 });

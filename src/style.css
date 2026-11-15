@@ -399,6 +399,9 @@ body.four .pip.tx.s1 { color: var(--sky); }
 .cmp-verdict.plus { color: var(--good); }
 .cmp-verdict.minus { color: var(--bad); }
 .cmp-note { font-size: 13px; line-height: 1.35; color: var(--ink-dim); padding: 0 2px; }
+.cmp-auction summary { cursor: pointer; font: 600 13px/1.3 var(--font-ui); color: var(--ink-dim); padding: 4px 2px; }
+.cmp-auction .au-head { margin-top: 6px; }
+.cmp-auction .au-body { overflow: visible; }
 .cmp-wait { display: flex; flex-direction: column; gap: 7px; padding: 9px 10px; border-radius: 8px; border: 1px dashed var(--line); font-size: 14px; color: var(--ink-dim); }
 .cmp-bar { height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
 .cmp-bar-fill { height: 100%; background: var(--brass); transition: width 0.3s ease; }
