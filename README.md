@@ -21,6 +21,21 @@ On an iPhone, open the hosted page in Safari and use Share > Add to Home Screen 
 - Undo takes back your last call or card. Hint shows what a bot would do.
 - Tap any call in the auction to see what it means in the bots' system.
 
+## Hosting
+
+The whole app is the single file `docs/index.html`, so any static host works.
+
+- **Cloudflare Workers:** `deploy/cloudflare.sh` uploads the file as a small Worker
+  (`deploy/worker.js`) and turns on its `workers.dev` address. It needs
+  `CLOUDFLARE_ACCOUNT_ID` and a `CLOUDFLARE_API_TOKEN` with the Workers Scripts: Edit permission.
+
+  ```bash
+  CLOUDFLARE_ACCOUNT_ID=... CLOUDFLARE_API_TOKEN=... deploy/cloudflare.sh
+  ```
+
+- **GitHub Pages:** in the repository settings choose Pages, deploy from the `main` branch,
+  folder `/docs`.
+
 ## How the bots work
 
 - **Bidding** (`src/bid-*.js`, `src/bidding.js`): Standard American (five-card majors, 15-17 1NT,
@@ -57,4 +72,5 @@ src/play.js        card-play engine      src/ai.js        entry points (also the
 src/aiclient.js    page-side worker client
 src/ui.js, page.html, style.css          the table interface
 build.js           bundles everything into one HTML file
+deploy/            Cloudflare Worker and deploy script
 ```
