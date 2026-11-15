@@ -34,13 +34,17 @@ the game on the phone; each new build arrives the next time it is opened online)
 
 The whole app is the single file `docs/index.html`, so any static host works.
 
-- **Cloudflare Workers:** `deploy/cloudflare.sh` uploads the file as a small Worker
-  (`deploy/worker.js`) and turns on its `workers.dev` address. It needs
-  `CLOUDFLARE_ACCOUNT_ID` and a `CLOUDFLARE_API_TOKEN` with the Workers Scripts: Edit permission.
+- **Cloudflare Workers:** every push to `main` runs the tests and deploys
+  (`.github/workflows/deploy.yml`), once the repository has a `CLOUDFLARE_API_TOKEN` secret
+  made with Cloudflare's "Edit Cloudflare Workers" token template. To deploy by hand:
 
   ```bash
-  CLOUDFLARE_ACCOUNT_ID=... CLOUDFLARE_API_TOKEN=... deploy/cloudflare.sh
+  CLOUDFLARE_API_TOKEN=... deploy/cloudflare.sh
   ```
+
+  The script uploads `docs/` as a small Worker (`deploy/worker.js`), turns on its `workers.dev`
+  address and checks that the live site serves the new build. Set `CLOUDFLARE_ACCOUNT_ID` if the
+  token can see more than one account.
 
 - **GitHub Pages:** in the repository settings choose Pages, deploy from the `main` branch,
   folder `/docs`.

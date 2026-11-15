@@ -1,0 +1,63 @@
+# On every push to main: build, check that the committed app in docs/ matches the source, run the
+# engine tests, and deploy to Cloudflare. Deploying needs a CLOUDFLARE_API_TOKEN repository secret
+# (Settings > Secrets and variables > Actions); without it the tests still run and deploying is skipped.
+name: Test and deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build
+        run: node build.js
+      - name: The committed app matches the source
+        run: |
+          if ! git diff --quiet -- docs/; then
+            echo "::error::docs/ is out of date. Run node build.js and commit docs/."
+            git diff --stat -- docs/
+            exit 1
+          fi
+      - name: Rules and scoring
+        run: node test/core.test.js
+      - name: Bidding
+        run: node test/bidfuzz.js 800
+      - name: Card play
+        run: node test/play.test.js
+      - name: Double-dummy solver
+        run: node test/dds.test.js --quick
+
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Deploy to Cloudflare
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        run: deploy/cloudflare.sh bridgegame
+      - name: Deploying skipped
+        if: env.CLOUDFLARE_API_TOKEN == ''
+        run: echo "::notice::Add a CLOUDFLARE_API_TOKEN repository secret to deploy to Cloudflare on every push."
