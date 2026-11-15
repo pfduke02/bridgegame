@@ -64,6 +64,11 @@ npm run test:ui          # full deals driven through the real page in headless C
 `test/bidlab.js`, `test/bidstats.js` and `test/playlab.js` print sample auctions, bidding
 statistics, and bot-versus-bot deals compared with double-dummy results.
 
+`npm run test:robust` runs the robustness checks in `test/robust/`: the rules, scoring and
+dealing against independent references (`rules.js`); bots against chaotic and misleading players
+and freak deals (`engine.js`); and the page against damaged saves, refused storage and workers,
+random tapping with reloads and resizes, a long session and a range of screen sizes (`ui.js`).
+
 ## Layout
 
 ```

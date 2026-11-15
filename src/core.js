@@ -309,6 +309,26 @@ Game.prototype.view = function (seat) {
     dummyHand: dummyShown ? this.hands[this.dummy].slice() : null
   };
 };
+// Rebuild a game from saved data, checking the deal and replaying every logged call and card
+// under the rules. Throws if anything in it is not a legal position.
+Game.restore = function (d) {
+  const isInt = Number.isInteger;
+  if (!d || typeof d !== 'object') throw new Error('no saved deal');
+  if (!isInt(d.board) || d.board < 1 || !isInt(d.dealer) || d.dealer < 0 || d.dealer > 3 || !isInt(d.vul) || d.vul < 0 || d.vul > 3) throw new Error('bad deal header');
+  if (!Array.isArray(d.hands) || d.hands.length !== 4) throw new Error('bad hands');
+  const seen = new Array(52).fill(false);
+  for (const h of d.hands) {
+    if (!Array.isArray(h) || h.length !== 13) throw new Error('bad hand');
+    for (const c of h) {
+      if (!isInt(c) || c < 0 || c > 51 || seen[c]) throw new Error('bad card');
+      seen[c] = true;
+    }
+  }
+  const g = new Game({ board: d.board, dealer: d.dealer, vul: d.vul, hands: d.hands });
+  for (const c of (Array.isArray(d.calls) ? d.calls : [])) g.makeCall(c);
+  for (const c of (Array.isArray(d.plays) ? d.plays : [])) g.playCard(c);
+  return g;
+};
 Game.prototype.toJSON = function () {
   return { board: this.board, dealer: this.dealer, vul: this.vul, hands: this.hands, calls: this.calls, plays: this.plays };
 };

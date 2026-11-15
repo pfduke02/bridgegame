@@ -1013,6 +1013,26 @@ Game.prototype.view = function (seat) {
     dummyHand: dummyShown ? this.hands[this.dummy].slice() : null
   };
 };
+// Rebuild a game from saved data, checking the deal and replaying every logged call and card
+// under the rules. Throws if anything in it is not a legal position.
+Game.restore = function (d) {
+  const isInt = Number.isInteger;
+  if (!d || typeof d !== 'object') throw new Error('no saved deal');
+  if (!isInt(d.board) || d.board < 1 || !isInt(d.dealer) || d.dealer < 0 || d.dealer > 3 || !isInt(d.vul) || d.vul < 0 || d.vul > 3) throw new Error('bad deal header');
+  if (!Array.isArray(d.hands) || d.hands.length !== 4) throw new Error('bad hands');
+  const seen = new Array(52).fill(false);
+  for (const h of d.hands) {
+    if (!Array.isArray(h) || h.length !== 13) throw new Error('bad hand');
+    for (const c of h) {
+      if (!isInt(c) || c < 0 || c > 51 || seen[c]) throw new Error('bad card');
+      seen[c] = true;
+    }
+  }
+  const g = new Game({ board: d.board, dealer: d.dealer, vul: d.vul, hands: d.hands });
+  for (const c of (Array.isArray(d.calls) ? d.calls : [])) g.makeCall(c);
+  for (const c of (Array.isArray(d.plays) ? d.plays : [])) g.playCard(c);
+  return g;
+};
 Game.prototype.toJSON = function () {
   return { board: this.board, dealer: this.dealer, vul: this.vul, hands: this.hands, calls: this.calls, plays: this.plays };
 };
@@ -3651,6 +3671,7 @@ const AIClient = (function () {
   const STRAIN_NAME = ['clubs', 'diamonds', 'hearts', 'spades', 'notrump'];
   const RANK_NAME = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'jack', 'queen', 'king', 'ace'];
   const AU_ORDER = [3, 0, 1, 2];                // auction columns: West North East South
+  const HISTORY_MAX = 500;                      // boards kept on the score sheet
   const SUIT_CHARS = { '♣': 0, '♦': 1, '♥': 2, '♠': 3 };
   const reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const $ = function (id) { return document.getElementById(id); };
@@ -3833,11 +3854,23 @@ const AIClient = (function () {
       S.slow = true;                             // still working: say so in the status line
       renderDock();
     });
-    later(watchdogMs, function () {
+    // Safety net: a bot that has not answered after watchdogMs of the page actually running gets a safe default.
+    // Time the page spent suspended (phone locked, app in the background) does not count, so coming back
+    // to the game never turns a bot's pending move into a forced pass.
+    let waited = 0, lastTick = Date.now();
+    const tick = function () {
       if (settled || key !== posKey()) return;
-      try { AIClient.reset(); } catch (e) { /* ignore */ }
-      finish(null);
-    });
+      const now = Date.now();
+      waited += Math.min(now - lastTick, 1500);
+      lastTick = now;
+      if (waited >= watchdogMs) {
+        try { AIClient.reset(); } catch (e) { /* ignore */ }
+        finish(null);
+        return;
+      }
+      later(Math.min(500, Math.max(50, watchdogMs - waited)), tick);
+    };
+    later(Math.min(500, watchdogMs), tick);
   }
 
   // A bot answer that is missing or illegal becomes Pass / the lowest legal card, so the game never stalls.
@@ -3979,7 +4012,10 @@ const AIClient = (function () {
     save();
     advance();
   }
-  function nextDeal() { S.boardNo++; startDeal(E.newDeal(S.boardNo)); }
+  function nextDeal() {
+    if (S.game.phase !== 'over') return;         // a second tap on the button must not skip a board
+    S.boardNo++; startDeal(E.newDeal(S.boardNo));
+  }
   function replayDeal() {
     const g = S.game;
     startDeal({ board: g.board, dealer: g.dealer, vul: g.vul, hands: g.hands });
@@ -3997,9 +4033,10 @@ const AIClient = (function () {
       if (old.bots) { entry.bots = old.bots; entry.botCalls = old.botCalls; }     // same cards: the bots' table stands
       S.history[i] = entry;
     } else S.history.push(entry);
+    if (S.history.length > HISTORY_MAX) S.history.splice(0, S.history.length - HISTORY_MAX);   // keeps the save small enough to store
   }
   function endDeal() {
-    if (!S.recorded) { recordResult(); S.recorded = true; }
+    if (!S.recorded || !histEntry(S.game.board)) { recordResult(); S.recorded = true; }
     save();
     queueCompare();
     openSheet('result');
@@ -4087,15 +4124,35 @@ const AIClient = (function () {
     return Number.isInteger(d.board) && d.board >= 1 && Number.isInteger(d.dealer) && Number.isInteger(d.vul) &&
       Array.isArray(d.calls) && Array.isArray(d.plays);
   }
+  // A score-sheet row read from storage: only well-formed fields survive, anything else is dropped.
+  function cleanEntry(h) {
+    const int = Number.isInteger;
+    const contract = function (e) {
+      return int(e.level) && e.level >= 1 && e.level <= 7 && int(e.strain) && e.strain >= 0 && e.strain <= 4 &&
+        int(e.doubled) && e.doubled >= 0 && e.doubled <= 2 && int(e.declarer) && e.declarer >= 0 && e.declarer <= 3 &&
+        int(e.made) && int(e.tricks) && e.tricks >= 0 && e.tricks <= 13 && Number.isFinite(e.ns);
+    };
+    const pick = function (e) { return { level: e.level, strain: e.strain, doubled: e.doubled, declarer: e.declarer, made: e.made, tricks: e.tricks, ns: e.ns }; };
+    if (!h || typeof h !== 'object' || !int(h.board) || h.board < 1) return null;
+    let out;
+    if (h.passedOut === true) out = { board: h.board, passedOut: true, ns: 0 };
+    else if (contract(h)) out = Object.assign({ board: h.board }, pick(h));
+    else return null;
+    const b = h.bots;
+    if (b && typeof b === 'object') {
+      if (b.passedOut === true) out.bots = { passedOut: true, ns: 0 };
+      else if (contract(b)) out.bots = pick(b);
+    }
+    if (out.bots && Array.isArray(h.botCalls) && h.botCalls.length <= 320 && h.botCalls.every(function (c) { return int(c) && c >= 0 && c <= 37; })) out.botCalls = h.botCalls.slice();
+    if (h.dd === null || (int(h.dd) && h.dd >= 0 && h.dd <= 13)) out.dd = h.dd;
+    return out;
+  }
   function restore(d) {
     if (!validDeal(d.game)) throw new Error('bad saved deal');
-    const g = new E.Game(d.game);                // throws if the logs do not fit the deal
+    const g = E.Game.restore(d.game);            // replays the logs under the rules; throws on anything illegal
     S.game = g;
-    S.boardNo = Number.isInteger(d.boardNo) && d.boardNo >= 1 ? d.boardNo : g.board;
-    S.history = Array.isArray(d.history) ? d.history.filter(function (h) {
-      if (!h || !Number.isInteger(h.board) || !Number.isFinite(h.ns)) return false;
-      return h.passedOut === true || (Number.isInteger(h.level) && Number.isInteger(h.strain) && Number.isInteger(h.declarer) && Number.isInteger(h.made));
-    }) : [];
+    S.boardNo = Number.isInteger(d.boardNo) && d.boardNo >= 1 && d.boardNo < 1e9 ? d.boardNo : g.board;
+    S.history = Array.isArray(d.history) ? d.history.map(cleanEntry).filter(Boolean).slice(-HISTORY_MAX) : [];
     S.recorded = !!d.recorded;
     S.texts = d.texts && typeof d.texts === 'object' ? d.texts : {};
     const st = d.settings || {};

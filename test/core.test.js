@@ -205,5 +205,42 @@ eq(E.trickWinner(0, [c(D, 4), c(C, 12), c(S, 12), c(H, 12)], C), 1, 'only trump 
   console.log('playthroughs: ' + played + ' played, ' + passedOut + ' passed out');
 }
 
+// ---- restoring a saved game: every logged call and card is replayed under the rules ----
+{
+  const rnd = E.mulberry32(4242);
+  const g = new E.Game(E.newDeal(6, rnd));
+  g.makeCall(E.mkBid(1, 4)); g.makeCall(0); g.makeCall(0); g.makeCall(0);
+  for (let i = 0; i < 9; i++) g.playCard(g.legalCards()[0]);
+  const saved = JSON.parse(JSON.stringify(g.toJSON()));
+  const back = E.Game.restore(saved);
+  eq([back.phase, back.turn, back.taken, back.plays.length, back.rem], [g.phase, g.turn, g.taken, g.plays.length, g.rem], 'restore reproduces the position');
+  const broken = function (label, change) {
+    const d = JSON.parse(JSON.stringify(saved));
+    change(d);
+    let threw = false;
+    try { E.Game.restore(d); } catch (e) { threw = true; }
+    eq(threw, true, 'restore rejects ' + label);
+  };
+  broken('a double before any bid', function (d) { d.calls = [1]; d.plays = []; });
+  broken('an insufficient bid', function (d) { d.calls = [E.mkBid(3, 4), E.mkBid(1, 0)]; d.plays = []; });
+  broken('a call after the auction ended', function (d) { d.calls = d.calls.concat([0]); d.plays = []; });
+  broken('a card before the auction ended', function (d) { d.calls = [0, 0]; });
+  broken('a card from the wrong hand', function (d) { const leader = (g.declarer + 1) & 3; d.plays = [d.hands[(leader + 1) & 3][0]]; });
+  broken('a revoke', function (d) {
+    const h = new E.Game({ board: d.board, dealer: d.dealer, vul: d.vul, hands: d.hands, calls: d.calls });
+    for (;;) {                                   // play legal cards until someone could revoke, then make them
+      const legal = h.legalCards(), off = h.rem[h.turn].find(function (c) { return legal.indexOf(c) < 0; });
+      if (off !== undefined) { d.plays = h.plays.concat([off]); return; }
+      h.playCard(legal[0]);
+    }
+  });
+  broken('a card played twice', function (d) { d.plays = d.plays.concat([d.plays[0]]); });
+  broken('a hand of 12 cards', function (d) { d.hands[2] = d.hands[2].slice(1); });
+  broken('one card in two hands', function (d) { d.hands[0][0] = d.hands[1][0]; });
+  broken('a dealer that does not exist', function (d) { d.dealer = 4; });
+  broken('a card number out of range', function (d) { d.hands[3][5] = 52; });
+  broken('nothing at all', function (d) { Object.keys(d).forEach(function (k) { delete d[k]; }); });
+}
+
 console.log(checks + ' checks, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);
