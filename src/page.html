@@ -1,0 +1,233 @@
+<svg class="sprite" width="0" height="0" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="suit-0" viewBox="0 0 100 100"><circle cx="50" cy="28" r="20"/><circle cx="28" cy="58" r="20"/><circle cx="72" cy="58" r="20"/><circle cx="50" cy="52" r="11"/><path d="M50 50C50 70 46 86 37 96L63 96C54 86 50 70 50 50Z"/></symbol>
+    <symbol id="suit-1" viewBox="0 0 100 100"><path d="M50 4C59 22 72 38 88 50C72 62 59 78 50 96C41 78 28 62 12 50C28 38 41 22 50 4Z"/></symbol>
+    <symbol id="suit-2" viewBox="0 0 100 100"><path d="M50 94C24 72 8 56 8 35C8 20 19 9 32 9C40 9 46 13 50 20C54 13 60 9 68 9C81 9 92 20 92 35C92 56 76 72 50 94Z"/></symbol>
+    <symbol id="suit-3" viewBox="0 0 100 100"><path d="M50 6C38 24 10 40 10 62C10 76 21 85 33 85C40 85 45 82 48 77C47 86 44 92 37 96L63 96C56 92 53 86 52 77C55 82 60 85 67 85C79 85 90 76 90 62C90 40 62 24 50 6Z"/></symbol>
+  </defs>
+</svg>
+
+<div class="app" id="app">
+  <header class="topbar">
+    <div class="board">
+      <span class="board-no" id="board-no">Board 1</span>
+      <span class="board-sub" id="board-sub"></span>
+    </div>
+    <div class="contract" id="contract" hidden></div>
+    <div class="tricks" id="tricks" hidden aria-label="Tricks won">
+      <span class="tk"><i>We</i><b id="tricks-we">0</b></span>
+      <span class="tk"><i>They</i><b id="tricks-they">0</b></span>
+    </div>
+    <button type="button" class="icon-btn" id="btn-menu" aria-label="Menu">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+  </header>
+
+  <main class="table" id="table">
+    <section class="seat seat-n" aria-label="North">
+      <div class="seat-tag" id="tag-0"></div>
+      <div id="hand-n"></div>
+    </section>
+    <section class="seat seat-w" aria-label="West">
+      <div class="seat-tag" id="tag-3"></div>
+      <div class="side-hand" id="hand-w"></div>
+    </section>
+    <section class="centre" id="centre">
+      <div class="auction-wrap" id="auction-wrap">
+        <div class="auction" id="auction"></div>
+        <p class="meaning" id="meaning"></p>
+      </div>
+      <div class="trick" id="trick" hidden>
+        <div class="compass" aria-hidden="true"><i class="cn">N</i><i class="ce">E</i><i class="cs">S</i><i class="cw">W</i></div>
+        <div class="trick-cards" id="trick-cards"></div>
+      </div>
+    </section>
+    <section class="seat seat-e" aria-label="East">
+      <div class="seat-tag" id="tag-1"></div>
+      <div class="side-hand" id="hand-e"></div>
+    </section>
+  </main>
+
+  <section class="dock" id="dock">
+    <div class="status-row">
+      <p class="status" id="status" role="status" aria-live="polite"></p>
+      <div class="actions">
+        <button type="button" class="act" id="btn-undo">Undo</button>
+        <button type="button" class="act" id="btn-hint">Hint</button>
+        <button type="button" class="act" id="btn-review">Review</button>
+      </div>
+    </div>
+    <p class="hint" id="hint" hidden></p>
+    <div class="bidbox" id="bidbox" hidden>
+      <div class="bb-row bb-levels" id="bb-levels"></div>
+      <div class="bb-row bb-strains" id="bb-strains"></div>
+      <div class="bb-row bb-calls">
+        <button type="button" class="bb pass" id="bb-pass">Pass</button>
+        <button type="button" class="bb dbl" id="bb-dbl" aria-label="Double">Dbl</button>
+        <button type="button" class="bb rdbl" id="bb-rdbl" aria-label="Redouble">Rdbl</button>
+      </div>
+    </div>
+    <div class="over-row" id="over-row" hidden>
+      <button type="button" class="btn" id="btn-result">Show result</button>
+      <button type="button" class="btn primary" id="btn-next">Next deal</button>
+    </div>
+  </section>
+
+  <section class="south" aria-label="South, your hand">
+    <div class="seat-tag" id="tag-2"></div>
+    <div class="fan" id="hand-s"></div>
+  </section>
+
+  <div class="preview" id="preview" hidden></div>
+</div>
+
+<div class="sheet" id="sheet-result" role="dialog" aria-modal="true" aria-labelledby="res-title" hidden>
+  <div class="sheet-panel">
+    <div class="sheet-head">
+      <div class="head-text">
+        <span class="eyebrow" id="res-board"></span>
+        <h2 id="res-title"></h2>
+      </div>
+      <button type="button" class="icon-btn" data-close aria-label="Close">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="sheet-body">
+      <div class="res-line">
+        <p id="res-outcome"></p>
+        <p class="res-score" id="res-score"></p>
+      </div>
+      <section class="cmp" aria-labelledby="cmp-h">
+        <h3 id="cmp-h">Same cards, four bots</h3>
+        <div class="cmp-body" id="cmp-body"></div>
+      </section>
+      <section class="pad" aria-label="Board by board against the bots">
+        <div class="pad-grid" id="pad"></div>
+        <p class="pad-net" id="pad-net"></p>
+      </section>
+      <section>
+        <h3>The deal</h3>
+        <div class="deal" id="res-deal"></div>
+      </section>
+    </div>
+    <div class="sheet-foot">
+      <button type="button" class="btn" id="res-replay">Replay deal</button>
+      <button type="button" class="btn primary" id="res-next">Next deal</button>
+    </div>
+  </div>
+</div>
+
+<div class="sheet" id="sheet-review" role="dialog" aria-modal="true" aria-labelledby="rev-title" hidden>
+  <div class="sheet-panel">
+    <div class="sheet-head">
+      <div class="head-text">
+        <span class="eyebrow" id="rev-board"></span>
+        <h2 id="rev-title">Auction and tricks</h2>
+      </div>
+      <button type="button" class="icon-btn" data-close aria-label="Close">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="sheet-body">
+      <section>
+        <h3>Auction</h3>
+        <div class="auction" id="rev-auction"></div>
+        <p class="meaning" id="rev-meaning"></p>
+      </section>
+      <section>
+        <h3>Tricks played</h3>
+        <div class="trick-list" id="rev-tricks"></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<div class="sheet" id="sheet-menu" role="dialog" aria-modal="true" aria-labelledby="menu-title" hidden>
+  <div class="sheet-panel">
+    <div class="sheet-head">
+      <div class="head-text">
+        <span class="eyebrow">You are South</span>
+        <h2 id="menu-title">Pocket Bridge</h2>
+      </div>
+      <button type="button" class="icon-btn" data-close aria-label="Close">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="sheet-body">
+      <div class="menu-actions">
+        <button type="button" class="btn" id="m-replay">Replay this deal</button>
+        <button type="button" class="btn" id="m-new">New match</button>
+      </div>
+      <div class="confirm" id="m-confirm" hidden>
+        <p>Start a new match? The score pad is cleared and play restarts at board 1.</p>
+        <div class="confirm-row">
+          <button type="button" class="btn" id="m-keep">Keep playing</button>
+          <button type="button" class="btn danger" id="m-new-yes">Start new match</button>
+        </div>
+      </div>
+
+      <section class="settings">
+        <h3>Settings</h3>
+        <div class="setting">
+          <span class="set-name" id="lbl-speed">Pace</span>
+          <div class="seg" id="set-speed" role="group" aria-labelledby="lbl-speed">
+            <button type="button" data-v="relaxed">Relaxed</button>
+            <button type="button" data-v="normal">Normal</button>
+            <button type="button" data-v="fast">Fast</button>
+          </div>
+        </div>
+        <div class="setting">
+          <span class="set-name" id="lbl-level">Bot strength</span>
+          <div class="seg" id="set-level" role="group" aria-labelledby="lbl-level">
+            <button type="button" data-v="1">Quick</button>
+            <button type="button" data-v="2">Standard</button>
+            <button type="button" data-v="3">Strong</button>
+          </div>
+        </div>
+        <div class="setting">
+          <label class="set-name" for="set-four">Four-colour deck</label>
+          <input type="checkbox" class="switch" id="set-four">
+        </div>
+      </section>
+
+      <details class="fold" id="fold-notes">
+        <summary>Bidding system</summary>
+        <div class="fold-body" id="notes-body"></div>
+      </details>
+
+      <details class="fold" id="fold-help">
+        <summary>How to play and scoring</summary>
+        <div class="fold-body">
+          <h4>The table</h4>
+          <ul>
+            <li>You sit South. North is your partner; East and West are the opponents. All three are bots.</li>
+            <li>Each deal is 13 cards a player. Dealer and vulnerability rotate with the board number.</li>
+          </ul>
+          <h4>Bidding</h4>
+          <ul>
+            <li>Calls go clockwise from the dealer. A bid names a level (1 to 7) and a strain; each bid must outrank the last. Strains rank clubs, diamonds, hearts, spades, notrump.</li>
+            <li>You may double an opponent's bid and redouble their double. Three passes in a row after a bid end the auction; four passes at the start throw the deal in.</li>
+            <li>The last bid is the contract: level + 6 tricks with that suit as trumps. Declarer is the first player of that side who named the strain.</li>
+            <li>Tap any call in the auction to see what it shows.</li>
+          </ul>
+          <h4>Play</h4>
+          <ul>
+            <li>The player on declarer's left leads, then dummy's hand goes face up. Follow suit if you can; otherwise play anything.</li>
+            <li>The highest card of the suit led wins the trick unless a trump is played, in which case the highest trump wins. The winner leads next.</li>
+            <li>When your side declares you play both your own hand and North's.</li>
+            <li>Press a card to lift it, slide to change your mind, release to play it.</li>
+          </ul>
+          <h4>Scoring (duplicate)</h4>
+          <ul>
+            <li>Tricks bid and made: clubs and diamonds 20 each, hearts and spades 30, notrump 40 for the first and 30 after. Doubled counts twice, redoubled four times.</li>
+            <li>100 or more trick points is a game: +300, or +500 vulnerable. Anything less is a part-score: +50.</li>
+            <li>Small slam (12 tricks bid): +500, or +750 vulnerable. Grand slam (13): +1000, or +1500.</li>
+            <li>Overtricks score their trick value; doubled they are 100 each (200 vulnerable), redoubled twice that. Making a doubled contract adds 50, redoubled 100.</li>
+            <li>Undertricks cost 50 each, 100 vulnerable. Doubled: 100, 300, 500, then 300 more each; vulnerable 200, 500, 800, then 300 more each.</li>
+            <li>WE on the score pad is North-South, THEY is East-West.</li>
+          </ul>
+        </div>
+      </details>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,13 @@
+{
+  "name": "bridge-game",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Contract bridge for one player: bid and play with a bot partner against two bot opponents. Runs entirely in the browser.",
+  "scripts": {
+    "build": "node build.js",
+    "test": "node test/core.test.js && node test/bidfuzz.js 1500 && node test/play.test.js && node test/dds.test.js",
+    "test:ui": "node build.js && node test/ui.smoke.js && node test/ui.compare.js",
+    "lab:bidding": "node test/bidstats.js 5000",
+    "lab:play": "node test/playlab.js 20 1 2"
+  }
+}
