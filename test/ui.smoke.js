@@ -481,6 +481,57 @@ async function checkResult(page, st) {
   f = await fits();
   ok(f.sw <= f.w && f.bad.length === 0, '320x568 menu: nothing wider than the viewport ' + JSON.stringify(f));
   await ctx2.close();
+
+  // ---------- phone held sideways (iPhone Safari, landscape) ----------
+  // Too short to stack: the auction and the trick must keep their own room, clear of the dock.
+  const ctx5 = await browser.newContext({ viewport: { width: 734, height: 343 }, deviceScaleFactor: 1, hasTouch: true, isMobile: true });
+  const page5 = await ctx5.newPage();
+  watch(page5);
+  await noFonts(page5);
+  await page5.goto(PAGE_URL);
+  const clear = function () {
+    return page5.evaluate(function () {
+      const bad = [];
+      const hit = function (a, b) { return a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1; };
+      const dock = document.getElementById('dock').getBoundingClientRect(), south = document.querySelector('.south').getBoundingClientRect();
+      document.querySelectorAll('#table .seat > *, #auction-wrap, #trick').forEach(function (n) {
+        const r = n.getBoundingClientRect();
+        if (!r.width || !r.height || n.closest('[hidden]')) return;
+        if (hit(r, dock) || hit(r, south)) bad.push((n.id || n.className) + ' overlaps the dock or South\'s hand');
+      });
+      document.querySelectorAll('#bidbox:not([hidden]) .bb, #dock .act').forEach(function (b) {
+        const r = b.getBoundingClientRect();
+        if (!r.width || b.closest('[hidden]')) return;
+        const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        if (!top || !b.contains(top)) bad.push((b.id || b.textContent) + ' is covered');
+      });
+      const au = document.getElementById('auction-wrap').getBoundingClientRect();
+      return { bad: bad.slice(0, 6), auction: Math.round(au.height) };
+    });
+  };
+  st = await waitFor(page5, function (s) { return s.phase === 'auction' && s.humanToAct; }, 'landscape: South to call');
+  f = await clear();
+  ok(f.bad.length === 0 && f.auction >= 60, 'landscape auction: the auction has room and the bidding box is uncovered ' + JSON.stringify(f));
+  await shot(page5, 'ui-8-landscape-auction');
+  for (guard = 0; guard < 12; guard++) {
+    st = await waitFor(page5, function (s) { return s.humanToAct || s.phase !== 'auction'; }, 'landscape: next call');
+    if (st.phase !== 'auction') break;
+    await tap(page5, '#bb-pass');
+    const b = st;
+    await waitFor(page5, function (s) { return s.calls !== b.calls || s.phase !== b.phase; }, 'landscape: pass');
+  }
+  st = await waitFor(page5, function (s) { return s.phase === 'over' || (s.phase === 'play' && s.humanToAct); }, 'landscape: play');
+  if (st.phase === 'play' && st.plays === 0) {           // South is on lead: lead, so a trick is on the table
+    const lead = await playable(page5);
+    await page5.touchscreen.tap(lead[0].x, lead[0].y);
+    st = await waitFor(page5, function (s) { return s.phase === 'over' || (s.humanToAct && s.plays > 0); }, 'landscape: after the lead');
+  }
+  if (st.phase === 'play') {
+    f = await clear();
+    ok(f.bad.length === 0, 'landscape play: the trick and the hands are clear of the dock ' + JSON.stringify(f));
+    await shot(page5, 'ui-9-landscape-play');
+  }
+  await ctx5.close();
   await browser.close();
 
   ok(errors.length === 0, 'no console or page errors: ' + errors.slice(0, 5).join(' | '));

@@ -332,6 +332,23 @@ body.four .pip.tx.s1 { color: var(--sky); }
 .south { position: relative; min-width: 0; }
 .south .seat-tag { position: absolute; left: -6px; top: -4px; }
 
+/* ---------- landscape phone ----------
+   Too short to stack everything: the table takes the left half, the dock and South's hand the right,
+   so the auction and the trick keep their room instead of sliding under the bidding box. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .app {
+    max-width: 920px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas: "top dock" "table dock" "table south";
+    column-gap: 18px;
+  }
+  .topbar { grid-area: top; }
+  .table { grid-area: table; }
+  .dock { grid-area: dock; justify-content: flex-end; min-height: 0; }
+  .south { grid-area: south; }
+}
+
 /* ---------- sheets ---------- */
 .sheet {
   position: fixed; inset: 0; z-index: 60;
