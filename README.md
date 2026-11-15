@@ -13,7 +13,9 @@ rule-based bidding system plus a double-dummy search for card play.
 
 ## Play it
 
-Open `docs/index.html` in a browser, or host that one file anywhere static.
+**Play now: https://bridgegame.fishman-da7.workers.dev/**
+
+To run your own copy, open `docs/index.html` in a browser, or host that one file anywhere static.
 On an iPhone, open the hosted page in Safari and use Share > Add to Home Screen for a full-screen app.
 
 - You play South. When North-South win the auction you play both hands (declarer and dummy).
