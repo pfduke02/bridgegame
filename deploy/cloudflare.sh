@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Publishes docs/index.html as a Cloudflare Worker on your workers.dev address.
+# Publishes the app in docs/ (page, offline worker, manifest, icons) as a Cloudflare Worker on your workers.dev address.
 #   CLOUDFLARE_ACCOUNT_ID=... CLOUDFLARE_API_TOKEN=... deploy/cloudflare.sh [worker-name]
 # The token needs the "Workers Scripts: Edit" permission for the account.
 set -euo pipefail
@@ -16,7 +16,12 @@ echo "Uploading worker '${NAME}'"
 curl -sS -X PUT "${API}/workers/scripts/${NAME}" -H "${AUTH}" \
   -F 'metadata={"main_module":"worker.js","compatibility_date":"2025-09-01"};type=application/json' \
   -F 'worker.js=@deploy/worker.js;type=application/javascript+module' \
-  -F 'index.html=@docs/index.html;type=text/plain' | ok
+  -F 'index.txt=@docs/index.html;type=text/plain' \
+  -F 'sw.txt=@docs/sw.js;type=text/plain' \
+  -F 'manifest.txt=@docs/manifest.webmanifest;type=text/plain' \
+  -F 'icon-180.bin=@docs/icon-180.png;type=application/octet-stream' \
+  -F 'icon-192.bin=@docs/icon-192.png;type=application/octet-stream' \
+  -F 'icon-512.bin=@docs/icon-512.png;type=application/octet-stream' | ok
 echo "Turning on its workers.dev address"
 curl -sS -X POST "${API}/workers/scripts/${NAME}/subdomain" -H "${AUTH}" -H 'Content-Type: application/json' \
   --data '{"enabled":true,"previews_enabled":false}' | ok

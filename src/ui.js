@@ -48,6 +48,7 @@
     hint: null,           // {key, pending} | {key, call, text} | {key, card}
     selLevel: null,       // level chosen in the bidding box
     texts: {},            // call index -> meaning
+    claim: null,          // {key, n, pending, msg}: a claim being set up
     meaning: null,        // {idx}: call whose meaning is on show
     shown: '',            // trick card last drawn (so only a new card animates in)
     sheet: null,
@@ -381,6 +382,7 @@
     const entry = r.passedOut
       ? { board: g.board, passedOut: true, ns: 0 }
       : { board: g.board, level: c.level, strain: c.strain, doubled: c.doubled, declarer: g.declarer, made: r.made, tricks: r.declTricks, ns: r.nsScore };
+    entry.sig = playSig(g);
     const i = S.history.findIndex(function (h) { return h.board === g.board; });
     if (i >= 0) {
       const old = S.history[i];
@@ -402,16 +404,29 @@
     for (const h of S.history) if (h.board === board) return h;
     return null;
   }
+  // Short fingerprint of a deal's calls, cards and claim: ties a review to the play it describes.
+  function playSig(g) {
+    const s = g.calls.join(',') + '|' + g.plays.join(',') + '|' + (g.claimed ? g.claimed.seat + ':' + g.claimed.tricks : '');
+    let h = 5381;
+    for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0;
+    return h.toString(36) + ':' + g.plays.length;
+  }
+  // Seats the human played for: South always, North too when North-South declared.
+  function humanSeatsOf(declarer) { return declarer >= 0 && (declarer & 1) === 0 ? [0, 2] : [2]; }
   function queueCompare() {
     const g = S.game, h = histEntry(g.board);
     if (!h || g.phase !== 'over' || typeof AIClient.analyse !== 'function') return;
-    const waiting = function (kind) {
-      return (CMP.busy && CMP.busy.board === g.board && CMP.busy.kind === kind) ||
-        CMP.queue.some(function (q) { return q.board === g.board && q.kind === kind; });
+    const waiting = function (kind, sig) {
+      const same = function (q) { return q.board === g.board && q.kind === kind && (sig === undefined || q.sig === sig); };
+      return (CMP.busy && same(CMP.busy)) || CMP.queue.some(same);
     };
     const hands = g.hands.map(function (x) { return x.slice(); });
+    // your own play is checked first (it takes about a second), then four bots replay the cards
+    if (!h.review && !waiting('review', h.sig)) {
+      delete h.reviewFailed;
+      CMP.queue.push({ kind: 'review', board: g.board, sig: h.sig, deal: g.toJSON(), human: humanSeatsOf(g.declarer) });
+    }
     if (!h.bots && !waiting('replay')) { delete h.botsFailed; CMP.queue.push({ kind: 'replay', board: g.board, dealer: g.dealer, vul: g.vul, hands: hands }); }
-    if (!h.passedOut && h.dd === undefined && !waiting('par')) CMP.queue.push({ kind: 'par', board: g.board, hands: hands });
     pumpCompare();
   }
   function pumpCompare() {
@@ -433,14 +448,22 @@
         h.botCalls = r.calls;
       });
     } else {
-      p = AIClient.analyse({ type: 'par', hands: job.hands, strain: h0.strain, declarer: h0.declarer, maxNodes: 6000000 }).then(function (r) {
+      p = AIClient.analyse({ type: 'review', deal: job.deal, humanSeats: job.human },
+        function (pr) { if (gen === CMP.gen) { CMP.progress = pr; if (showing()) renderPlayReview(); } }
+      ).then(function (r) {
         const h = histEntry(job.board);
-        if (gen === CMP.gen && h) h.dd = r && Number.isInteger(r.tricks) ? r.tricks : null;
+        if (gen !== CMP.gen || !h || h.sig !== job.sig || !r) return;      // the deal was replayed meanwhile
+        const rv = cleanReview(r);
+        if (!rv) { h.reviewFailed = true; return; }
+        h.review = rv;
+        if (Number.isInteger(rv.start)) h.dd = rv.start;
       });
     }
     p.catch(function (err) {
       const h = histEntry(job.board);
-      if (gen === CMP.gen && h && job.kind === 'replay' && !(err && err.cancelled)) h.botsFailed = true;
+      if (gen !== CMP.gen || !h || (err && err.cancelled)) return;
+      if (job.kind === 'replay') h.botsFailed = true;
+      else if (h.sig === job.sig) h.reviewFailed = true;
     }).then(function () {
       if (gen !== CMP.gen) return;
       CMP.busy = null; CMP.progress = null;
@@ -499,6 +522,32 @@
     }
     if (out.bots && Array.isArray(h.botCalls) && h.botCalls.length <= 320 && h.botCalls.every(function (c) { return int(c) && c >= 0 && c <= 37; })) out.botCalls = h.botCalls.slice();
     if (h.dd === null || (int(h.dd) && h.dd >= 0 && h.dd <= 13)) out.dd = h.dd;
+    if (typeof h.sig === 'string' && h.sig.length <= 40) {
+      out.sig = h.sig;
+      const rv = cleanReview(h.review);
+      if (rv) out.review = rv;
+    }
+    return out;
+  }
+  // A review of your play, from the analysis worker or from storage; null if anything in it is malformed.
+  function cleanReview(r) {
+    const int = Number.isInteger;
+    if (!r || typeof r !== 'object' || !Array.isArray(r.cost) || r.cost.length > 52) return null;
+    if (!r.cost.every(function (c) { return int(c) && c >= -1 && c <= 13; })) return null;
+    const out = { cost: r.cost.slice(), best: {}, start: int(r.start) && r.start >= 0 && r.start <= 13 ? r.start : null, claim: null, bids: [] };
+    if (r.best && typeof r.best === 'object') {
+      Object.keys(r.best).forEach(function (k) {
+        const i = Number(k), v = r.best[k];
+        if (int(i) && i >= 0 && i < out.cost.length && Array.isArray(v) && v.length && v.length <= 13 && v.every(function (c) { return int(c) && c >= 0 && c <= 51; })) out.best[i] = v.slice();
+      });
+    }
+    const cl = r.claim;
+    if (cl && typeof cl === 'object' && int(cl.tricks) && cl.tricks >= 0 && cl.tricks <= 13 && (cl.could === null || (int(cl.could) && cl.could >= 0 && cl.could <= 13))) out.claim = { tricks: cl.tricks, could: cl.could };
+    if (Array.isArray(r.bids)) {
+      r.bids.slice(0, 40).forEach(function (b) {
+        if (b && int(b.i) && b.i >= 0 && b.i < 320 && int(b.bot) && b.bot >= 0 && b.bot <= 37) out.bids.push({ i: b.i, bot: b.bot, botText: typeof b.botText === 'string' ? b.botText.slice(0, 300) : '' });
+      });
+    }
     return out;
   }
   function restore(d) {
@@ -862,6 +911,8 @@
     fill($('status'), statusParts());
     $('btn-undo').disabled = undoCount() === 0;
     $('btn-hint').disabled = !humanToAct();
+    $('btn-claim').hidden = g.phase !== 'play';
+    $('btn-claim').disabled = !humanToAct() || !!S.hold;
     $('btn-review').hidden = !g.contract;       // during the bidding the auction is on the table already
 
     const hint = $('hint');
@@ -950,10 +1001,78 @@
     $('bb-rdbl').classList.toggle('hinted', hintCall === RDBL);
   }
 
+  // ---------- claiming ----------
+  // You say how many of the remaining tricks your side takes. The bots accept when those tricks are there
+  // with best play from here (checked double dummy); otherwise play goes on. Claiming none concedes the rest.
+  function openClaim() {
+    const g = S.game;
+    if (g.phase !== 'play' || !humanToAct() || S.hold) return;
+    S.claim = { key: posKey(), n: g.tricksLeft(), pending: false, msg: '' };
+    openSheet('claim');
+  }
+  function renderClaim() {
+    const g = S.game, c = S.claim;
+    if (!c || g.phase !== 'play') return;
+    const left = g.tricksLeft();
+    $('claim-left').textContent = left + ' ' + trickWord(left) + ' still to play' + (g.cur.cards.length ? ', the one in progress included' : '') + '.';
+    $('claim-n').textContent = String(c.n);
+    $('claim-split').textContent = c.n === 0 ? 'You concede the rest: East-West take all ' + left + '.'
+      : c.n === left ? 'Your side takes all ' + left + '.'
+        : 'Your side takes ' + c.n + ', East-West take ' + (left - c.n) + '.';
+    $('claim-minus').disabled = c.pending || c.n <= 0;
+    $('claim-plus').disabled = c.pending || c.n >= left;
+    $('claim-go').disabled = c.pending;
+    $('claim-go').textContent = c.pending ? 'Checking\u2026' : c.n === 0 ? 'Concede' : 'Claim';
+    const m = $('claim-msg');
+    m.textContent = c.msg;
+    m.hidden = !c.msg;
+  }
+  function stepClaim(d) {
+    const c = S.claim;
+    if (!c || c.pending) return;
+    c.n = Math.max(0, Math.min(S.game.tricksLeft(), c.n + d));
+    c.msg = '';
+    renderClaim();
+  }
+  function acceptClaim(n) {
+    const g = S.game;
+    g.claim(g.turn, n);
+    S.claim = null;
+    S.hint = null;
+    closeSheet();
+    save();
+    advance();
+  }
+  function submitClaim() {
+    const g = S.game, c = S.claim;
+    if (!c || c.pending || c.key !== posKey() || g.phase !== 'play') return;
+    if (c.n === 0) { acceptClaim(0); return; }          // conceding is always accepted
+    c.pending = true; c.msg = '';
+    renderClaim();
+    const n = c.n, key = c.key;
+    let p;
+    try {
+      p = track(AIClient.checkClaim({ hands: g.rem.map(function (h) { return h.slice(); }), trump: g.contract.strain, leader: g.cur.leader, trick: g.cur.cards.slice(), seat: g.turn }));
+    } catch (e) { p = Promise.reject(e); }
+    p.then(function (r) {
+      if (S.claim !== c || key !== posKey()) return;
+      if (r && Number.isInteger(r.tricks) && n <= r.tricks) { acceptClaim(n); return; }
+      c.pending = false;
+      c.msg = r && Number.isInteger(r.tricks) ? 'East and West do not accept: they can still take more. Play on.' : 'East and West want to see it played out. Play on.';
+      renderClaim();
+    }, function (err) {
+      if (S.claim !== c || (err && err.cancelled)) return;
+      c.pending = false;
+      c.msg = 'East and West want to see it played out. Play on.';
+      renderClaim();
+    });
+  }
+
   // ---------- sheets ----------
   function openSheet(name) {
     S.sheet = name;
-    ['result', 'review', 'menu'].forEach(function (n) { $('sheet-' + n).hidden = n !== name; });
+    ['result', 'review', 'menu', 'claim'].forEach(function (n) { $('sheet-' + n).hidden = n !== name; });
+    if (name === 'claim') renderClaim();
     if (name === 'result') renderResult();
     if (name === 'review') renderReview();
     if (name === 'menu') renderMenu();
@@ -961,8 +1080,9 @@
     if (first && document.activeElement && document.activeElement !== document.body) { try { first.focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
   }
   function closeSheet() {
+    if (S.sheet === 'claim') S.claim = null;
     S.sheet = null;
-    ['result', 'review', 'menu'].forEach(function (n) { $('sheet-' + n).hidden = true; });
+    ['result', 'review', 'menu', 'claim'].forEach(function (n) { $('sheet-' + n).hidden = true; });
     $('m-confirm').hidden = true;
   }
 
@@ -977,7 +1097,125 @@
     else s = 'Down ' + (-r.made) + ': ' + r.declTricks + ' of the ' + need + ' tricks needed.';
     if (r.nsScore > 0) s += ' ' + r.nsScore + ' to your side.';
     else if (r.nsScore < 0) s += ' ' + (-r.nsScore) + ' to East-West.';
+    if (r.claim) s += ' ' + claimText(g) + '.';
     return s;
+  }
+
+  // ---------- review of your play: every card against perfect play, every call against the bots' system ----------
+  // Who played each card of this deal, replaying the log.
+  function playSeats(g) {
+    const seats = [], ps = E.publicPlayState(g.dealer, g.calls, g.plays);
+    if (!ps) return seats;
+    for (let i = 0; i < g.plays.length; i++) seats.push(ps.playedBy[g.plays[i]]);
+    return seats;
+  }
+  function trickWord(n) { return n === 1 ? 'trick' : 'tricks'; }
+  function claimText(g) {
+    const c = g.result.claim, who = humanSeatsOf(g.declarer).indexOf(c.seat) >= 0 ? 'You' : E.SEAT_NAME[c.seat];
+    if (c.tricks === 0) return who + ' conceded the last ' + (c.of === 1 ? 'trick' : c.of + ' tricks');
+    return who + ' claimed ' + (c.tricks === c.of ? (c.of === 1 ? 'the last trick' : 'all of the last ' + c.of + ' tricks') : c.tricks + ' of the last ' + c.of + ' ' + trickWord(c.of));
+  }
+  function renderPlayReview() {
+    const g = S.game, h = histEntry(g.board), body = $('yp-body');
+    if (!body) return;
+    const sec = $('yp');
+    if (!h) { sec.hidden = true; return; }
+    sec.hidden = false;
+    const rv = h.sig === playSig(g) ? h.review : null, parts = [];
+    if (!rv) {
+      if (CMP.busy && CMP.busy.kind === 'review' && CMP.busy.board === g.board) {
+        const pr = CMP.progress, done = pr && pr.total ? pr.done : 0, total = pr && pr.total ? pr.total : 0;
+        const w = el('div', 'cmp-wait');
+        w.appendChild(el('span', '', total ? 'Checking every card against perfect play: ' + done + ' of ' + total : 'Checking your calls and cards'));
+        const bar = el('div', 'cmp-bar'), f = el('div', 'cmp-bar-fill');
+        f.style.width = Math.round(100 * (0.05 + 0.95 * (total ? done / total : 0))) + '%';
+        bar.appendChild(f); w.appendChild(bar);
+        parts.push(w);
+      } else if (h.reviewFailed) parts.push(el('p', 'cmp-note', 'This deal could not be checked.'));
+      else parts.push(el('p', 'cmp-note', 'Waiting to check this deal.'));
+      fill(body, parts);
+      return;
+    }
+    const human = humanSeatsOf(g.declarer), seats = playSeats(g);
+    // the play
+    if (g.contract && rv.cost.length) {
+      const ours = (g.declarer & 1) === 0;
+      let mine = 0, partner = 0, theirs = 0, unknown = 0;
+      const slips = [];
+      rv.cost.forEach(function (c, i) {
+        if (c < 0) { unknown++; return; }
+        const seat = seats[i];
+        if (human.indexOf(seat) >= 0) { mine += c; if (c > 0) slips.push(i); }
+        else if ((seat & 1) === 0) partner += c;
+        else theirs += c;
+      });
+      const shortfall = rv.claim && Number.isInteger(rv.claim.could) ? Math.max(0, rv.claim.could - rv.claim.tricks) : 0;
+      const lines = [];
+      if (Number.isInteger(rv.start)) {
+        lines.push(ours ? 'With perfect play from the opening lead you make ' + rv.start + ' ' + trickWord(rv.start) + '; you took ' + g.result.declTricks + '.'
+          : 'With perfect play from the opening lead declarer makes ' + rv.start + ' ' + trickWord(rv.start) + '; they took ' + g.result.declTricks + '.');
+      }
+      const bits = [mine === 0 ? 'every card you played was a best card' : 'your cards cost ' + mine + ' ' + trickWord(mine)];
+      if (!ours) bits.push(partner === 0 ? 'North made no mistakes' : 'North\u2019s cost ' + partner);
+      bits.push(theirs === 0 ? (ours ? 'the defenders made no mistakes' : 'declarer made no mistakes') : (ours ? 'the defenders\u2019 mistakes gave back ' : 'declarer\u2019s mistakes gave back ') + theirs);
+      const sentence = bits.join(', ');
+      lines.push(sentence.charAt(0).toUpperCase() + sentence.slice(1) + '.');
+      const sum = el('p', 'yp-sum' + (mine + shortfall === 0 ? ' clean' : ''));
+      sum.id = 'yp-sum';
+      sum.textContent = lines.join(' ');
+      parts.push(sum);
+      if (slips.length) {
+        const list = el('div', 'yp-list');
+        slips.forEach(function (i) {
+          const row = el('div', 'yp-row');
+          row.appendChild(el('span', 'yp-trick', 'Trick ' + (Math.floor(i / 4) + 1)));
+          const what = el('span', 'yp-what');
+          what.appendChild(cardToken(g.plays[i]));
+          if (seats[i] === g.dummy) what.appendChild(el('span', 'yp-from', 'from dummy'));
+          row.appendChild(what);
+          const better = el('span', 'yp-best');
+          if (rv.best[i]) { better.appendChild(el('span', 'yp-lbl', 'Best')); rv.best[i].slice(0, 4).forEach(function (c) { better.appendChild(cardToken(c)); }); }
+          row.appendChild(better);
+          const cost = el('span', 'yp-cost', '\u2212' + rv.cost[i]);
+          cost.setAttribute('aria-label', 'cost ' + rv.cost[i] + ' ' + trickWord(rv.cost[i]));
+          row.appendChild(cost);
+          list.appendChild(row);
+        });
+        parts.push(list);
+      }
+      if (shortfall > 0) parts.push(el('p', 'cmp-note warn', 'Your claim gave away ' + shortfall + ' ' + trickWord(shortfall) + ': ' + rv.claim.could + ' were still there for your side.'));
+      if (unknown) parts.push(el('p', 'cmp-note', unknown + (unknown === 1 ? ' position was' : ' positions were') + ' too complex to check in the time allowed.'));
+      if (slips.length) parts.push(el('p', 'cmp-note', 'Perfect play means seeing all four hands, so some of these were guesses that strong players also get wrong.'));
+    }
+    // the bidding
+    const myCalls = g.calls.filter(function (c, i) { return ((g.dealer + i) & 3) === HUMAN; }).length;
+    if (myCalls) {
+      if (!rv.bids.length) parts.push(el('p', 'yp-bids clean', 'Your calls matched the bots\u2019 system at every turn.'));
+      else {
+        parts.push(el('p', 'yp-bids', myCalls === 1 ? 'The bots\u2019 system would have made a different call:'
+          : 'The bots\u2019 system would have called differently at ' + rv.bids.length + ' of your ' + myCalls + ' turns:'));
+        const list = el('div', 'yp-list');
+        rv.bids.forEach(function (b) {
+          const row = el('div', 'yp-bid');
+          const top = el('div', 'yp-bid-top');
+          top.appendChild(el('span', 'yp-lbl', 'You'));
+          top.appendChild(callChip(g.calls[b.i]));
+          top.appendChild(el('span', 'yp-lbl', 'Bots'));
+          top.appendChild(callChip(b.bot));
+          row.appendChild(top);
+          if (b.botText) { const t = el('p', 'yp-why'); t.appendChild(rich(b.botText)); row.appendChild(t); }
+          list.appendChild(row);
+        });
+        parts.push(list);
+      }
+    }
+    if (g.contract && g.tricks.length) {
+      const btn = el('button', 'btn yp-open', 'Card by card');
+      btn.type = 'button';
+      btn.addEventListener('click', function () { openSheet('review'); });
+      parts.push(btn);
+    }
+    fill(body, parts);
   }
   // Your table next to the bots' table for the deal on show.
   function compareWhy(h) {
@@ -1047,7 +1285,7 @@
       parts.push(w);
     } else if (h.botsFailed) parts.push(el('p', 'cmp-note', 'The bots could not replay this deal.'));
     else parts.push(el('p', 'cmp-note', 'Waiting for the bots to replay this deal.'));
-    if (!h.passedOut && Number.isInteger(h.dd)) {
+    if (!h.passedOut && Number.isInteger(h.dd) && !h.review) {
       const d = h.tricks - h.dd, n = Math.abs(d), ours = (h.declarer & 1) === 0;
       let t = 'With perfect play by all four hands, declarer takes ' + h.dd + (h.dd === 1 ? ' trick' : ' tricks') + ' in ' + (ours ? 'your' : 'their') + ' contract';
       t += d === 0 ? ': exactly what happened.' : ours ? ': you took ' + n + (d > 0 ? ' more.' : ' fewer.') : d > 0 ? ': they took ' + n + ' more against you.' : ': you held them to ' + n + ' fewer.';
@@ -1067,6 +1305,7 @@
     sc.textContent = signed(r.nsScore);
 
     renderCompare();
+    renderPlayReview();
 
     // board by board against the bots: your North-South score, theirs with the same cards, and the IMP difference
     const pad = $('pad');
@@ -1119,6 +1358,13 @@
     $('rev-board').textContent = head.join(' · ');
     renderAuction($('rev-auction'));
     renderMeaning($('rev-meaning'));
+    const he = g.phase === 'over' ? histEntry(g.board) : null;
+    const rv = he && he.sig === playSig(g) ? he.review : null;
+    const human = humanSeatsOf(g.declarer);
+    if (rv) rv.bids.forEach(function (b) {
+      const chip = $('rev-auction').querySelector('[data-idx="' + b.i + '"]');
+      if (chip) { chip.classList.add('diff'); chip.title = 'The bots would call ' + E.callName(b.bot); }
+    });
     const list = $('rev-tricks');
     if (!g.tricks.length) { fill(list, [el('p', 'empty-note', 'No tricks have been played yet.')]); return; }
     const rows = [];
@@ -1131,14 +1377,21 @@
       row.appendChild(el('span', 'tl-n', String(i + 1)));
       AU_ORDER.forEach(function (seat) {
         const card = t.cards[(seat - t.leader) & 3], s = E.cardSuit(card);
-        const cell = el('span', 'tl-c' + (seat === t.leader ? ' lead' : '') + (seat === t.winner ? ' win' : ''));
+        const pi = i * 4 + ((seat - t.leader) & 3), cost = rv ? rv.cost[pi] : 0;
+        const cell = el('span', 'tl-c' + (seat === t.leader ? ' lead' : '') + (seat === t.winner ? ' win' : '') +
+          (cost > 0 ? ' cost' + (human.indexOf(seat) >= 0 ? ' mine' : '') : ''));
         cell.appendChild(pip(s));
         cell.appendChild(el('b', '', E.rankText(E.cardRank(card))));
-        cell.setAttribute('aria-label', E.SEAT_NAME[seat] + ': ' + RANK_NAME[E.cardRank(card)] + ' of ' + SUIT_NAME[s] + (seat === t.winner ? ', wins' : ''));
+        if (cost > 0) cell.appendChild(el('i', 'tl-cost', '\u2212' + cost));
+        cell.setAttribute('aria-label', E.SEAT_NAME[seat] + ': ' + RANK_NAME[E.cardRank(card)] + ' of ' + SUIT_NAME[s] + (seat === t.winner ? ', wins' : '') +
+          (cost > 0 ? ', cost ' + cost + ' ' + trickWord(cost) + (rv.best[pi] ? '; best ' + rv.best[pi].map(E.cardText).join(' ') : '') : ''));
+        if (cost > 0 && rv.best[pi]) cell.title = 'Best: ' + rv.best[pi].map(E.cardText).join(' ');
         row.appendChild(cell);
       });
       rows.push(row);
     });
+    if (g.result && g.result.claim) rows.push(el('p', 'empty-note', claimText(g) + '.'));
+    if (rv && rv.cost.some(function (c) { return c > 0; })) rows.unshift(el('p', 'tl-legend', 'A number on a card is how many tricks it cost against perfect play. Yours are in red.'));
     fill(list, rows);
   }
 
@@ -1184,6 +1437,10 @@
     $('btn-undo').addEventListener('click', doUndo);
     $('btn-hint').addEventListener('click', doHint);
     $('btn-review').addEventListener('click', function () { openSheet('review'); });
+    $('btn-claim').addEventListener('click', openClaim);
+    $('claim-minus').addEventListener('click', function () { stepClaim(-1); });
+    $('claim-plus').addEventListener('click', function () { stepClaim(1); });
+    $('claim-go').addEventListener('click', submitClaim);
     $('btn-menu').addEventListener('click', function () { openSheet('menu'); });
     $('btn-result').addEventListener('click', function () { openSheet('result'); });
     $('btn-next').addEventListener('click', nextDeal);
@@ -1252,7 +1509,7 @@
         lastBid: g.auction.lastBid, lastBidder: g.auction.lastBidder, doubled: g.auction.doubled,
         humanToAct: humanToAct(), hold: !!S.hold, showAuction: S.showAuction, thinking: S.thinking,
         sheet: S.sheet, hint: S.hint, history: S.history.slice(), settings: Object.assign({}, S.settings),
-        usingWorker: AIClient.usingWorker(), comparing: !!CMP.busy, comparingKind: CMP.busy ? CMP.busy.kind : '', compareQueue: CMP.queue.length
+        usingWorker: AIClient.usingWorker(), claimOpen: !!S.claim, tricksLeft: g.tricksLeft(), comparing: !!CMP.busy, comparingKind: CMP.busy ? CMP.busy.kind : '', compareQueue: CMP.queue.length
       };
     }
   };

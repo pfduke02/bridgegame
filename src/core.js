@@ -224,6 +224,7 @@ function Game(deal) {
   this.hands = deal.hands.map(function (h) { return h.slice().sort(function (a, b) { return b - a; }); });
   this.calls = (deal.calls || []).slice();
   this.plays = (deal.plays || []).slice();
+  this.claimed = deal.claim ? { seat: deal.claim.seat, tricks: deal.claim.tricks } : null;   // an accepted claim ends the play
   this.sync();
 }
 Game.prototype.sync = function () {
@@ -248,14 +249,24 @@ Game.prototype.sync = function () {
   }
   this.tricks = ps.tricks;
   this.taken = ps.taken;
-  if (ps.over) {
-    const c = this.contract, declTricks = ps.taken[this.declarer & 1];
+  let claim = null;
+  if (this.claimed && !ps.over) {
+    // the claimer's side takes the claimed number of the tricks still to play (the trick in progress included)
+    const cl = this.claimed, left = 13 - ps.tricks.length, side = cl.seat & 1;
+    this.taken = ps.taken.slice();
+    this.taken[side] += cl.tricks;
+    this.taken[side ^ 1] += left - cl.tricks;
+    claim = { seat: cl.seat, tricks: cl.tricks, of: left };
+  }
+  if (ps.over || claim) {
+    const c = this.contract, declTricks = this.taken[this.declarer & 1];
     const sc = scoreContract(c.level, c.strain, c.doubled, seatVul(this.vul, this.declarer), declTricks);
     this.phase = 'over'; this.turn = -1;
     this.result = {
       passedOut: false, declTricks: declTricks, made: declTricks - (c.level + 6),
-      score: sc, nsScore: (this.declarer & 1) === 0 ? sc : -sc
+      score: sc, nsScore: (this.declarer & 1) === 0 ? sc : -sc, claim: claim
     };
+    if (claim) this.cur = { leader: ps.leader, cards: ps.cur };
     return;
   }
   this.phase = 'play';
@@ -286,6 +297,16 @@ Game.prototype.playCard = function (card) {
   this.plays.push(card);
   this.sync();
 };
+// Tricks still to be played, the one in progress included.
+Game.prototype.tricksLeft = function () { return this.phase === 'play' ? 13 - this.tricks.length : 0; };
+// End the play with an accepted claim: `seat`'s side takes `tricks` of the tricks still to play.
+Game.prototype.claim = function (seat, tricks) {
+  if (this.phase !== 'play') throw new Error('nothing to claim');
+  if (!Number.isInteger(seat) || seat < 0 || seat > 3) throw new Error('bad seat');
+  if (!Number.isInteger(tricks) || tricks < 0 || tricks > this.tricksLeft()) throw new Error('bad claim');
+  this.claimed = { seat: seat, tricks: tricks };
+  this.sync();
+};
 // The seat that decides for `seat` during the play (declarer plays dummy's cards).
 Game.prototype.actor = function (seat) {
   if (seat === undefined) seat = this.turn;
@@ -294,7 +315,8 @@ Game.prototype.actor = function (seat) {
 // Take back the last n actions (cards first, then calls).
 Game.prototype.undo = function (n) {
   for (let i = 0; i < (n || 1); i++) {
-    if (this.plays.length) this.plays.pop();
+    if (this.claimed) this.claimed = null;
+    else if (this.plays.length) this.plays.pop();
     else if (this.calls.length) this.calls.pop();
   }
   this.sync();
@@ -327,8 +349,11 @@ Game.restore = function (d) {
   const g = new Game({ board: d.board, dealer: d.dealer, vul: d.vul, hands: d.hands });
   for (const c of (Array.isArray(d.calls) ? d.calls : [])) g.makeCall(c);
   for (const c of (Array.isArray(d.plays) ? d.plays : [])) g.playCard(c);
+  if (d.claim) g.claim(d.claim.seat, d.claim.tricks);
   return g;
 };
 Game.prototype.toJSON = function () {
-  return { board: this.board, dealer: this.dealer, vul: this.vul, hands: this.hands, calls: this.calls, plays: this.plays };
+  const out = { board: this.board, dealer: this.dealer, vul: this.vul, hands: this.hands, calls: this.calls, plays: this.plays };
+  if (this.claimed) out.claim = { seat: this.claimed.seat, tricks: this.claimed.tricks };
+  return out;
 };

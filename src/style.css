@@ -402,6 +402,41 @@ body.four .pip.tx.s1 { color: var(--sky); }
 .cmp-auction summary { cursor: pointer; font: 600 13px/1.3 var(--font-ui); color: var(--ink-dim); padding: 4px 2px; }
 .cmp-auction .au-head { margin-top: 6px; }
 .cmp-auction .au-body { overflow: visible; }
+/* your play, card by card against perfect play */
+.yp-sum { font: 600 15px/1.35 var(--font-ui); padding: 0 2px; }
+.yp-sum.clean, .yp-bids.clean { color: var(--good); }
+.yp-bids { font: 500 14px/1.35 var(--font-ui); padding: 4px 2px 0; }
+.yp-list { display: flex; flex-direction: column; gap: 5px; }
+.yp-row { display: grid; grid-template-columns: 52px auto minmax(0, 1fr) 30px; align-items: center; gap: 8px; padding: 7px 10px;
+  border-radius: 8px; background: var(--panel-raised); border: 1px solid var(--line); font: 500 14px/1.2 var(--font-ui); }
+.yp-trick { font: 600 13px/1 var(--font-cond); letter-spacing: 0.04em; color: var(--ink-dim); }
+.yp-what, .yp-best { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; min-width: 0; }
+.yp-what { flex-direction: column; align-items: flex-start; gap: 2px; }
+.yp-best { justify-content: flex-end; }
+.yp-from { font-size: 12px; color: var(--ink-dim); }
+.yp-cost { font: 700 17px/1 var(--font-cond); color: var(--bad); text-align: right; }
+.yp-lbl { font: 600 11px/1 var(--font-cond); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-dim); }
+.yp-bid { padding: 7px 10px; border-radius: 8px; background: var(--panel-raised); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 5px; }
+.yp-bid-top { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.yp-why { font-size: 13px; line-height: 1.35; color: var(--ink-dim); }
+.yp-open { align-self: flex-start; flex: none; height: 40px; margin-top: 2px; }
+.cmp-note.warn { color: var(--bad); }
+.tl-c { position: relative; }
+.tl-c .tl-cost { position: absolute; top: -6px; right: -4px; font: 700 10px/1 var(--font-cond); font-style: normal; padding: 2px 3px; border-radius: 6px;
+  background: var(--ink-dim); color: var(--panel); }
+.tl-c.mine .tl-cost { background: var(--bad); color: var(--brass-ink); }
+.tl-legend { font-size: 12px; color: var(--ink-dim); padding: 0 0 6px; }
+.bidcard.diff { box-shadow: 0 0 0 2px var(--bad); }
+
+/* claim sheet */
+.claim-panel { max-width: 420px; }
+.claim-left, .claim-split { font: 500 15px/1.35 var(--font-ui); }
+.stepper { display: flex; align-items: center; justify-content: center; gap: 18px; padding: 6px 0; }
+.step { width: 52px; height: 52px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel-raised); color: var(--ink);
+  font: 600 28px/1 var(--font-ui); cursor: pointer; }
+.step:disabled { opacity: 0.35; }
+.step-n { min-width: 2ch; text-align: center; font: 700 44px/1 var(--font-cond); font-variant-numeric: tabular-nums; color: var(--brass); }
+.claim-msg { font: 600 15px/1.35 var(--font-ui); color: var(--bad); }
 .cmp-wait { display: flex; flex-direction: column; gap: 7px; padding: 9px 10px; border-radius: 8px; border: 1px dashed var(--line); font-size: 14px; color: var(--ink-dim); }
 .cmp-bar { height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
 .cmp-bar-fill { height: 100%; background: var(--brass); transition: width 0.3s ease; }

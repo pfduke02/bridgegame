@@ -1,0 +1,23 @@
+{
+  "name": "Pocket Bridge",
+  "short_name": "Bridge",
+  "description": "Contract bridge for one player: bid and play with a bot partner against two bot opponents.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#08251e",
+  "theme_color": "#0f3d31",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

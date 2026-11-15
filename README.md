@@ -8,6 +8,11 @@ After every deal, four bots bid and play the **same cards** in the background. T
 puts your table next to theirs (contract, tricks, score) and scores the difference in IMPs, the
 way two tables are compared in duplicate bridge.
 
+The result panel also reviews your own play: every card is checked against perfect play with all
+four hands known, so you see which cards cost tricks and what the best card was, and every call
+is compared with what the bots' system would have bid. During the play you can claim the
+remaining tricks; the bots accept when those tricks are there with best play.
+
 Everything runs in the browser. There is no server and no language model: the bots are a
 rule-based bidding system plus a double-dummy search for card play.
 
@@ -16,7 +21,9 @@ rule-based bidding system plus a double-dummy search for card play.
 **Play now: https://bridgegame.fishman-da7.workers.dev/**
 
 To run your own copy, open `docs/index.html` in a browser, or host that one file anywhere static.
-On an iPhone, open the hosted page in Safari and use Share > Add to Home Screen for a full-screen app.
+On an iPhone, open the hosted page in Safari and use Share > Add to Home Screen. It installs with
+its own icon, opens full-screen, and keeps working without a connection (a service worker stores
+the game on the phone; each new build arrives the next time it is opened online).
 
 - You play South. When North-South win the auction you play both hands (declarer and dummy).
 - Tap a level, then a strain, to bid. Press a card, slide to change, release to play.
@@ -78,6 +85,8 @@ src/bid-*.js       bidding system        src/bidding.js   rule dispatcher, syste
 src/play.js        card-play engine      src/ai.js        entry points (also the Web Worker)
 src/aiclient.js    page-side worker client
 src/ui.js, page.html, style.css          the table interface
+src/sw.js          offline support for the installed app
+tools/make-icons.js  draws the app icon (docs/icon-*.png)
 build.js           bundles everything into one HTML file
 deploy/            Cloudflare Worker and deploy script
 ```

@@ -44,7 +44,7 @@ async function open(browser, opt) {
   if (opt.init) await page.addInitScript(opt.init);
   if (opt.storage !== undefined) {
     await page.addInitScript(function (a) {
-      try { if (!sessionStorage.getItem('seeded')) { sessionStorage.setItem('seeded', '1'); localStorage.setItem(a.key, a.value); } } catch (e) { /* storage may be disabled on purpose */ }
+      try { if (!localStorage.getItem('test-seeded')) { localStorage.setItem('test-seeded', '1'); localStorage.setItem(a.key, a.value); } } catch (e) { /* storage may be disabled on purpose */ }
     }, { key: KEY, value: typeof opt.storage === 'string' ? opt.storage : JSON.stringify(opt.storage) });
   }
   await page.goto(PAGE);
@@ -138,7 +138,12 @@ async function sectionSaves(browser) {
 async function sectionFailures(browser) {
   const play = async function (o, steps) {
     let acted = 0;
-    for (let i = 0; i < 80 && acted < steps; i++) { if (await humanStep(o.page)) acted++; await o.page.waitForTimeout(250); const s = await state(o.page); if (s.sheet === 'result') break; }
+    for (let i = 0; i < 80 && acted < steps; i++) {
+      if (await humanStep(o.page)) acted++;
+      await o.page.waitForTimeout(250);
+      const s = await state(o.page);
+      if (s.sheet === 'result') { acted++; await o.page.locator('#res-next').click(); }    // a deal that ended (perhaps passed out) counts, then on to the next
+    }
     return acted;
   };
   {

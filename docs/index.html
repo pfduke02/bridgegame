@@ -6,7 +6,11 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Pocket Bridge">
+<meta name="apple-mobile-web-app-title" content="Bridge">
+<meta name="theme-color" content="#0f3d31">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <title>Pocket Bridge</title>
 <style>:root{padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px);box-sizing:border-box}body{margin:0;font:14px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
@@ -417,6 +421,41 @@ body.four .pip.tx.s1 { color: var(--sky); }
 .cmp-auction summary { cursor: pointer; font: 600 13px/1.3 var(--font-ui); color: var(--ink-dim); padding: 4px 2px; }
 .cmp-auction .au-head { margin-top: 6px; }
 .cmp-auction .au-body { overflow: visible; }
+/* your play, card by card against perfect play */
+.yp-sum { font: 600 15px/1.35 var(--font-ui); padding: 0 2px; }
+.yp-sum.clean, .yp-bids.clean { color: var(--good); }
+.yp-bids { font: 500 14px/1.35 var(--font-ui); padding: 4px 2px 0; }
+.yp-list { display: flex; flex-direction: column; gap: 5px; }
+.yp-row { display: grid; grid-template-columns: 52px auto minmax(0, 1fr) 30px; align-items: center; gap: 8px; padding: 7px 10px;
+  border-radius: 8px; background: var(--panel-raised); border: 1px solid var(--line); font: 500 14px/1.2 var(--font-ui); }
+.yp-trick { font: 600 13px/1 var(--font-cond); letter-spacing: 0.04em; color: var(--ink-dim); }
+.yp-what, .yp-best { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; min-width: 0; }
+.yp-what { flex-direction: column; align-items: flex-start; gap: 2px; }
+.yp-best { justify-content: flex-end; }
+.yp-from { font-size: 12px; color: var(--ink-dim); }
+.yp-cost { font: 700 17px/1 var(--font-cond); color: var(--bad); text-align: right; }
+.yp-lbl { font: 600 11px/1 var(--font-cond); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-dim); }
+.yp-bid { padding: 7px 10px; border-radius: 8px; background: var(--panel-raised); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 5px; }
+.yp-bid-top { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.yp-why { font-size: 13px; line-height: 1.35; color: var(--ink-dim); }
+.yp-open { align-self: flex-start; flex: none; height: 40px; margin-top: 2px; }
+.cmp-note.warn { color: var(--bad); }
+.tl-c { position: relative; }
+.tl-c .tl-cost { position: absolute; top: -6px; right: -4px; font: 700 10px/1 var(--font-cond); font-style: normal; padding: 2px 3px; border-radius: 6px;
+  background: var(--ink-dim); color: var(--panel); }
+.tl-c.mine .tl-cost { background: var(--bad); color: var(--brass-ink); }
+.tl-legend { font-size: 12px; color: var(--ink-dim); padding: 0 0 6px; }
+.bidcard.diff { box-shadow: 0 0 0 2px var(--bad); }
+
+/* claim sheet */
+.claim-panel { max-width: 420px; }
+.claim-left, .claim-split { font: 500 15px/1.35 var(--font-ui); }
+.stepper { display: flex; align-items: center; justify-content: center; gap: 18px; padding: 6px 0; }
+.step { width: 52px; height: 52px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel-raised); color: var(--ink);
+  font: 600 28px/1 var(--font-ui); cursor: pointer; }
+.step:disabled { opacity: 0.35; }
+.step-n { min-width: 2ch; text-align: center; font: 700 44px/1 var(--font-cond); font-variant-numeric: tabular-nums; color: var(--brass); }
+.claim-msg { font: 600 15px/1.35 var(--font-ui); color: var(--bad); }
 .cmp-wait { display: flex; flex-direction: column; gap: 7px; padding: 9px 10px; border-radius: 8px; border: 1px dashed var(--line); font-size: 14px; color: var(--ink-dim); }
 .cmp-bar { height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
 .cmp-bar-fill { height: 100%; background: var(--brass); transition: width 0.3s ease; }
@@ -520,6 +559,7 @@ body.four .pip.tx.s1 { color: var(--sky); }
       <div class="actions">
         <button type="button" class="act" id="btn-undo">Undo</button>
         <button type="button" class="act" id="btn-hint">Hint</button>
+        <button type="button" class="act" id="btn-claim" hidden>Claim</button>
         <button type="button" class="act" id="btn-review">Review</button>
       </div>
     </div>
@@ -567,6 +607,10 @@ body.four .pip.tx.s1 { color: var(--sky); }
         <h3 id="cmp-h">Same cards, four bots</h3>
         <div class="cmp-body" id="cmp-body"></div>
       </section>
+      <section class="yp" id="yp" aria-labelledby="yp-h" hidden>
+        <h3 id="yp-h">Your play</h3>
+        <div class="cmp-body" id="yp-body"></div>
+      </section>
       <section class="pad" aria-label="Board by board against the bots">
         <div class="pad-grid" id="pad"></div>
         <p class="pad-net" id="pad-net"></p>
@@ -604,6 +648,35 @@ body.four .pip.tx.s1 { color: var(--sky); }
         <h3>Tricks played</h3>
         <div class="trick-list" id="rev-tricks"></div>
       </section>
+    </div>
+  </div>
+</div>
+
+<div class="sheet" id="sheet-claim" role="dialog" aria-modal="true" aria-labelledby="claim-title" hidden>
+  <div class="sheet-panel claim-panel">
+    <div class="sheet-head">
+      <div class="head-text">
+        <span class="eyebrow">Skip the obvious tricks</span>
+        <h2 id="claim-title">Claim</h2>
+      </div>
+      <button type="button" class="icon-btn" data-close aria-label="Close">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="sheet-body">
+      <p class="claim-left" id="claim-left"></p>
+      <div class="stepper" role="group" aria-label="Tricks you claim">
+        <button type="button" class="step" id="claim-minus" aria-label="One trick fewer">&minus;</button>
+        <output class="step-n" id="claim-n" aria-live="polite"></output>
+        <button type="button" class="step" id="claim-plus" aria-label="One trick more">+</button>
+      </div>
+      <p class="claim-split" id="claim-split"></p>
+      <p class="claim-msg" id="claim-msg" role="alert" hidden></p>
+      <p class="cmp-note">East and West accept if those tricks are there with best play from here. Otherwise play goes on.</p>
+    </div>
+    <div class="sheet-foot">
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button type="button" class="btn primary" id="claim-go">Claim</button>
     </div>
   </div>
 </div>
@@ -668,6 +741,10 @@ body.four .pip.tx.s1 { color: var(--sky); }
           <ul>
             <li>You sit South. North is your partner; East and West are the opponents. All three are bots.</li>
             <li>Each deal is 13 cards a player. Dealer and vulnerability rotate with the board number.</li>
+          </ul>
+          <h4>Claiming</h4>
+          <ul>
+            <li>When the rest of the tricks are clear, tap Claim during the play and say how many your side takes. East and West accept if those tricks are there with best play; otherwise play goes on. Claiming none concedes the rest.</li>
           </ul>
           <h4>Bidding</h4>
           <ul>
@@ -928,6 +1005,7 @@ function Game(deal) {
   this.hands = deal.hands.map(function (h) { return h.slice().sort(function (a, b) { return b - a; }); });
   this.calls = (deal.calls || []).slice();
   this.plays = (deal.plays || []).slice();
+  this.claimed = deal.claim ? { seat: deal.claim.seat, tricks: deal.claim.tricks } : null;   // an accepted claim ends the play
   this.sync();
 }
 Game.prototype.sync = function () {
@@ -952,14 +1030,24 @@ Game.prototype.sync = function () {
   }
   this.tricks = ps.tricks;
   this.taken = ps.taken;
-  if (ps.over) {
-    const c = this.contract, declTricks = ps.taken[this.declarer & 1];
+  let claim = null;
+  if (this.claimed && !ps.over) {
+    // the claimer's side takes the claimed number of the tricks still to play (the trick in progress included)
+    const cl = this.claimed, left = 13 - ps.tricks.length, side = cl.seat & 1;
+    this.taken = ps.taken.slice();
+    this.taken[side] += cl.tricks;
+    this.taken[side ^ 1] += left - cl.tricks;
+    claim = { seat: cl.seat, tricks: cl.tricks, of: left };
+  }
+  if (ps.over || claim) {
+    const c = this.contract, declTricks = this.taken[this.declarer & 1];
     const sc = scoreContract(c.level, c.strain, c.doubled, seatVul(this.vul, this.declarer), declTricks);
     this.phase = 'over'; this.turn = -1;
     this.result = {
       passedOut: false, declTricks: declTricks, made: declTricks - (c.level + 6),
-      score: sc, nsScore: (this.declarer & 1) === 0 ? sc : -sc
+      score: sc, nsScore: (this.declarer & 1) === 0 ? sc : -sc, claim: claim
     };
+    if (claim) this.cur = { leader: ps.leader, cards: ps.cur };
     return;
   }
   this.phase = 'play';
@@ -990,6 +1078,16 @@ Game.prototype.playCard = function (card) {
   this.plays.push(card);
   this.sync();
 };
+// Tricks still to be played, the one in progress included.
+Game.prototype.tricksLeft = function () { return this.phase === 'play' ? 13 - this.tricks.length : 0; };
+// End the play with an accepted claim: `seat`'s side takes `tricks` of the tricks still to play.
+Game.prototype.claim = function (seat, tricks) {
+  if (this.phase !== 'play') throw new Error('nothing to claim');
+  if (!Number.isInteger(seat) || seat < 0 || seat > 3) throw new Error('bad seat');
+  if (!Number.isInteger(tricks) || tricks < 0 || tricks > this.tricksLeft()) throw new Error('bad claim');
+  this.claimed = { seat: seat, tricks: tricks };
+  this.sync();
+};
 // The seat that decides for `seat` during the play (declarer plays dummy's cards).
 Game.prototype.actor = function (seat) {
   if (seat === undefined) seat = this.turn;
@@ -998,7 +1096,8 @@ Game.prototype.actor = function (seat) {
 // Take back the last n actions (cards first, then calls).
 Game.prototype.undo = function (n) {
   for (let i = 0; i < (n || 1); i++) {
-    if (this.plays.length) this.plays.pop();
+    if (this.claimed) this.claimed = null;
+    else if (this.plays.length) this.plays.pop();
     else if (this.calls.length) this.calls.pop();
   }
   this.sync();
@@ -1031,10 +1130,13 @@ Game.restore = function (d) {
   const g = new Game({ board: d.board, dealer: d.dealer, vul: d.vul, hands: d.hands });
   for (const c of (Array.isArray(d.calls) ? d.calls : [])) g.makeCall(c);
   for (const c of (Array.isArray(d.plays) ? d.plays : [])) g.playCard(c);
+  if (d.claim) g.claim(d.claim.seat, d.claim.tricks);
   return g;
 };
 Game.prototype.toJSON = function () {
-  return { board: this.board, dealer: this.dealer, vul: this.vul, hands: this.hands, calls: this.calls, plays: this.plays };
+  const out = { board: this.board, dealer: this.dealer, vul: this.vul, hands: this.hands, calls: this.calls, plays: this.plays };
+  if (this.claimed) out.claim = { seat: this.claimed.seat, tricks: this.claimed.tricks };
+  return out;
 };
 
 ;
@@ -3361,6 +3463,8 @@ function playStartJob(view, level) {
 //   {type:'explain', dealer, vul, calls} -> {texts: string[]}   meaning of every call in the auction
 //   {type:'replay', deal, level}         -> the same deal bid and played by four bots (the other table in duplicate)
 //   {type:'par', hands, strain, declarer, maxNodes} -> {tricks}  tricks declarer takes with perfect play all round (null if too costly)
+//   {type:'review', deal, humanSeats}    -> every card checked against perfect play, every human call against the bots' system
+//   {type:'claim', hands, trump, leader, trick, seat} -> {tricks}  most tricks seat's side can still take (null if too costly)
 // A job is {step(ms) -> done?, result}; step() may be called repeatedly so a main-thread
 // fallback can stay responsive.
 
@@ -3417,6 +3521,12 @@ function aiStartJob(req) {
     return job;
   }
   if (req.type === 'replay') return aiReplayJob(req);
+  if (req.type === 'review') return aiReviewJob(req);
+  if (req.type === 'claim') {
+    let tricks = null;
+    try { tricks = aiSideCanTake(req.hands, req.trump, req.leader, req.trick || [], req.seat, req.maxNodes || 12000000); } catch (e) { tricks = null; }
+    return aiDoneJob({ tricks: tricks });
+  }
   if (req.type === 'par') {
     let tricks = null;
     try {
@@ -3430,11 +3540,79 @@ function aiStartJob(req) {
   throw new Error('unknown request type: ' + req.type);
 }
 
+function aiHold(hands) {
+  const hold = new Array(16).fill(0);
+  for (let s = 0; s < 4; s++) for (const c of hands[s]) hold[s * 4 + cardSuit(c)] |= 1 << cardRank(c);
+  return hold;
+}
+// Most tricks `seat`'s side can take from this position (the trick in progress included) with best play all round.
+function aiSideCanTake(hands, trump, leader, trick, seat, maxNodes) {
+  const res = ddSolveBoard(aiHold(hands), trump, leader, trick, maxNodes);
+  if (!res) return null;
+  const mover = (leader + trick.length) & 3, left = hands[mover].length;
+  let best = 0;
+  for (const t of res.tricks) if (t > best) best = t;
+  return ((mover ^ seat) & 1) === 0 ? best : left - best;
+}
+
+// Review of a finished deal with all four hands known:
+//   cost[i]  tricks the i-th card played cost its side against the best card in that position (-1: not analysed)
+//   best[i]  the best cards, for cards played by the human's seats that cost a trick
+//   start    tricks declarer takes with best play from the opening lead
+//   claim    for an accepted claim: {tricks claimed, could: tricks the side could still have taken}
+//   bids     the human's calls where the bots' system would have called differently
+function aiReviewJob(req) {
+  const d = req.deal, human = req.humanSeats || [2];
+  const g = new Game({ board: d.board, dealer: d.dealer, vul: d.vul, hands: d.hands, calls: d.calls });
+  const plays = d.plays || [], out = { v: 1, cost: [], best: {}, start: null, claim: null, bids: [] };
+  const job = { result: null, progress: { phase: 'review', done: 0, total: plays.length }, step: null };
+  // bidding: what the bots' system calls with the human's cards at each of the human's turns
+  for (let i = 0; i < d.calls.length; i++) {
+    const seat = (d.dealer + i) & 3;
+    if (human.indexOf(seat) < 0) continue;
+    let r = null;
+    try { r = bidChooseCall({ seat: seat, hand: d.hands[seat], dealer: d.dealer, vul: d.vul, calls: d.calls.slice(0, i) }); } catch (e) { r = null; }
+    if (r && r.call !== d.calls[i]) out.bids.push({ i: i, bot: r.call, botText: r.text });
+  }
+  let i = 0;
+  job.step = function (ms) {
+    const end = Date.now() + (ms || 20);
+    if (g.phase !== 'play') { job.result = out; return true; }
+    while (i <= plays.length) {
+      if (i === plays.length) {
+        if (d.claim && g.phase === 'play') {
+          const could = aiSideCanTake(g.rem, g.contract.strain, g.cur.leader, g.cur.cards, d.claim.seat, req.maxNodes || 15000000);
+          out.claim = { tricks: d.claim.tricks, could: could };
+        }
+        i++;
+        break;
+      }
+      const res = ddSolveBoard(aiHold(g.rem), g.contract.strain, g.cur.leader, g.cur.cards, req.maxNodes || 15000000);
+      const card = plays[i], seat = g.turn;
+      if (res) {
+        let top = 0;
+        for (const t of res.tricks) if (t > top) top = t;
+        const k = res.cards.indexOf(card), cost = k >= 0 ? top - res.tricks[k] : -1;
+        out.cost.push(cost);
+        if (cost > 0 && human.indexOf(seat) >= 0) out.best[i] = res.cards.filter(function (c, j) { return res.tricks[j] === top; });
+        if (i === 0) out.start = ((seat ^ g.declarer) & 1) === 0 ? top : 13 - top;
+      } else out.cost.push(-1);
+      g.playCard(card);
+      i++;
+      job.progress = { phase: 'review', done: i, total: plays.length };
+      if (Date.now() >= end) return false;
+    }
+    if (i > plays.length) { job.result = out; return true; }
+    return false;
+  };
+  return job;
+}
+
 // Four bots bid and play a whole deal, each seeing only its own cards (and dummy once it is down).
 function aiReplayJob(req) {
   const d = req.deal, level = req.level || 2;
   const g = new Game({ board: d.board, dealer: d.dealer, vul: d.vul, hands: d.hands });
-  const job = { result: null, progress: { phase: 'auction', tricks: 0 }, step: null };
+  const job = { result: null, progress: { phase: 'auction', tricks: 0 }, step: null };   // (a replay never claims)
   let inner = null;
   job.step = function (ms) {
     const end = Date.now() + (ms || 20);
@@ -3561,7 +3739,9 @@ const AIClient = (function () {
   let side = null, sideOk = true, sideJob = null;
   function sideLocal(p) {                                    // no worker available: run in short slices on the page
     let job;
-    try { job = BridgeEngine.aiStartJob(p.req); } catch (e) { sideJob = null; p.reject(e); return; }
+    // on the page itself a single position must not freeze the screen: analyse each one less deeply
+    const req = p.req.type === 'review' ? Object.assign({}, p.req, { maxNodes: 2500000 }) : p.req;
+    try { job = BridgeEngine.aiStartJob(req); } catch (e) { sideJob = null; p.reject(e); return; }
     (function pump() {
       if (p.cancelled) return;
       let done;
@@ -3623,6 +3803,8 @@ const AIClient = (function () {
     chooseCall: function (view) { return request({ type: 'call', view: view }); },
     // view.seat = the seat deciding (declarer decides for dummy). level: 1 quick .. 3 strongest. -> Promise<{card}>
     choosePlay: function (view, level) { return request({ type: 'play', view: view, level: level || 2 }); },
+    // {hands (remaining cards of all four), trump, leader, trick, seat} -> Promise<{tricks}>: most tricks seat's side can still take
+    checkClaim: function (pos) { return request(Object.assign({ type: 'claim' }, pos)); },
     // -> Promise<string[]>: plain-language meaning of each call in the auction
     explainAuction: function (dealer, vul, calls) {
       return request({ type: 'explain', dealer: dealer, vul: vul, calls: calls }).then(function (r) { return r.texts; });
@@ -3694,6 +3876,7 @@ const AIClient = (function () {
     hint: null,           // {key, pending} | {key, call, text} | {key, card}
     selLevel: null,       // level chosen in the bidding box
     texts: {},            // call index -> meaning
+    claim: null,          // {key, n, pending, msg}: a claim being set up
     meaning: null,        // {idx}: call whose meaning is on show
     shown: '',            // trick card last drawn (so only a new card animates in)
     sheet: null,
@@ -4027,6 +4210,7 @@ const AIClient = (function () {
     const entry = r.passedOut
       ? { board: g.board, passedOut: true, ns: 0 }
       : { board: g.board, level: c.level, strain: c.strain, doubled: c.doubled, declarer: g.declarer, made: r.made, tricks: r.declTricks, ns: r.nsScore };
+    entry.sig = playSig(g);
     const i = S.history.findIndex(function (h) { return h.board === g.board; });
     if (i >= 0) {
       const old = S.history[i];
@@ -4048,16 +4232,29 @@ const AIClient = (function () {
     for (const h of S.history) if (h.board === board) return h;
     return null;
   }
+  // Short fingerprint of a deal's calls, cards and claim: ties a review to the play it describes.
+  function playSig(g) {
+    const s = g.calls.join(',') + '|' + g.plays.join(',') + '|' + (g.claimed ? g.claimed.seat + ':' + g.claimed.tricks : '');
+    let h = 5381;
+    for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0;
+    return h.toString(36) + ':' + g.plays.length;
+  }
+  // Seats the human played for: South always, North too when North-South declared.
+  function humanSeatsOf(declarer) { return declarer >= 0 && (declarer & 1) === 0 ? [0, 2] : [2]; }
   function queueCompare() {
     const g = S.game, h = histEntry(g.board);
     if (!h || g.phase !== 'over' || typeof AIClient.analyse !== 'function') return;
-    const waiting = function (kind) {
-      return (CMP.busy && CMP.busy.board === g.board && CMP.busy.kind === kind) ||
-        CMP.queue.some(function (q) { return q.board === g.board && q.kind === kind; });
+    const waiting = function (kind, sig) {
+      const same = function (q) { return q.board === g.board && q.kind === kind && (sig === undefined || q.sig === sig); };
+      return (CMP.busy && same(CMP.busy)) || CMP.queue.some(same);
     };
     const hands = g.hands.map(function (x) { return x.slice(); });
+    // your own play is checked first (it takes about a second), then four bots replay the cards
+    if (!h.review && !waiting('review', h.sig)) {
+      delete h.reviewFailed;
+      CMP.queue.push({ kind: 'review', board: g.board, sig: h.sig, deal: g.toJSON(), human: humanSeatsOf(g.declarer) });
+    }
     if (!h.bots && !waiting('replay')) { delete h.botsFailed; CMP.queue.push({ kind: 'replay', board: g.board, dealer: g.dealer, vul: g.vul, hands: hands }); }
-    if (!h.passedOut && h.dd === undefined && !waiting('par')) CMP.queue.push({ kind: 'par', board: g.board, hands: hands });
     pumpCompare();
   }
   function pumpCompare() {
@@ -4079,14 +4276,22 @@ const AIClient = (function () {
         h.botCalls = r.calls;
       });
     } else {
-      p = AIClient.analyse({ type: 'par', hands: job.hands, strain: h0.strain, declarer: h0.declarer, maxNodes: 6000000 }).then(function (r) {
+      p = AIClient.analyse({ type: 'review', deal: job.deal, humanSeats: job.human },
+        function (pr) { if (gen === CMP.gen) { CMP.progress = pr; if (showing()) renderPlayReview(); } }
+      ).then(function (r) {
         const h = histEntry(job.board);
-        if (gen === CMP.gen && h) h.dd = r && Number.isInteger(r.tricks) ? r.tricks : null;
+        if (gen !== CMP.gen || !h || h.sig !== job.sig || !r) return;      // the deal was replayed meanwhile
+        const rv = cleanReview(r);
+        if (!rv) { h.reviewFailed = true; return; }
+        h.review = rv;
+        if (Number.isInteger(rv.start)) h.dd = rv.start;
       });
     }
     p.catch(function (err) {
       const h = histEntry(job.board);
-      if (gen === CMP.gen && h && job.kind === 'replay' && !(err && err.cancelled)) h.botsFailed = true;
+      if (gen !== CMP.gen || !h || (err && err.cancelled)) return;
+      if (job.kind === 'replay') h.botsFailed = true;
+      else if (h.sig === job.sig) h.reviewFailed = true;
     }).then(function () {
       if (gen !== CMP.gen) return;
       CMP.busy = null; CMP.progress = null;
@@ -4145,6 +4350,32 @@ const AIClient = (function () {
     }
     if (out.bots && Array.isArray(h.botCalls) && h.botCalls.length <= 320 && h.botCalls.every(function (c) { return int(c) && c >= 0 && c <= 37; })) out.botCalls = h.botCalls.slice();
     if (h.dd === null || (int(h.dd) && h.dd >= 0 && h.dd <= 13)) out.dd = h.dd;
+    if (typeof h.sig === 'string' && h.sig.length <= 40) {
+      out.sig = h.sig;
+      const rv = cleanReview(h.review);
+      if (rv) out.review = rv;
+    }
+    return out;
+  }
+  // A review of your play, from the analysis worker or from storage; null if anything in it is malformed.
+  function cleanReview(r) {
+    const int = Number.isInteger;
+    if (!r || typeof r !== 'object' || !Array.isArray(r.cost) || r.cost.length > 52) return null;
+    if (!r.cost.every(function (c) { return int(c) && c >= -1 && c <= 13; })) return null;
+    const out = { cost: r.cost.slice(), best: {}, start: int(r.start) && r.start >= 0 && r.start <= 13 ? r.start : null, claim: null, bids: [] };
+    if (r.best && typeof r.best === 'object') {
+      Object.keys(r.best).forEach(function (k) {
+        const i = Number(k), v = r.best[k];
+        if (int(i) && i >= 0 && i < out.cost.length && Array.isArray(v) && v.length && v.length <= 13 && v.every(function (c) { return int(c) && c >= 0 && c <= 51; })) out.best[i] = v.slice();
+      });
+    }
+    const cl = r.claim;
+    if (cl && typeof cl === 'object' && int(cl.tricks) && cl.tricks >= 0 && cl.tricks <= 13 && (cl.could === null || (int(cl.could) && cl.could >= 0 && cl.could <= 13))) out.claim = { tricks: cl.tricks, could: cl.could };
+    if (Array.isArray(r.bids)) {
+      r.bids.slice(0, 40).forEach(function (b) {
+        if (b && int(b.i) && b.i >= 0 && b.i < 320 && int(b.bot) && b.bot >= 0 && b.bot <= 37) out.bids.push({ i: b.i, bot: b.bot, botText: typeof b.botText === 'string' ? b.botText.slice(0, 300) : '' });
+      });
+    }
     return out;
   }
   function restore(d) {
@@ -4508,6 +4739,8 @@ const AIClient = (function () {
     fill($('status'), statusParts());
     $('btn-undo').disabled = undoCount() === 0;
     $('btn-hint').disabled = !humanToAct();
+    $('btn-claim').hidden = g.phase !== 'play';
+    $('btn-claim').disabled = !humanToAct() || !!S.hold;
     $('btn-review').hidden = !g.contract;       // during the bidding the auction is on the table already
 
     const hint = $('hint');
@@ -4596,10 +4829,78 @@ const AIClient = (function () {
     $('bb-rdbl').classList.toggle('hinted', hintCall === RDBL);
   }
 
+  // ---------- claiming ----------
+  // You say how many of the remaining tricks your side takes. The bots accept when those tricks are there
+  // with best play from here (checked double dummy); otherwise play goes on. Claiming none concedes the rest.
+  function openClaim() {
+    const g = S.game;
+    if (g.phase !== 'play' || !humanToAct() || S.hold) return;
+    S.claim = { key: posKey(), n: g.tricksLeft(), pending: false, msg: '' };
+    openSheet('claim');
+  }
+  function renderClaim() {
+    const g = S.game, c = S.claim;
+    if (!c || g.phase !== 'play') return;
+    const left = g.tricksLeft();
+    $('claim-left').textContent = left + ' ' + trickWord(left) + ' still to play' + (g.cur.cards.length ? ', the one in progress included' : '') + '.';
+    $('claim-n').textContent = String(c.n);
+    $('claim-split').textContent = c.n === 0 ? 'You concede the rest: East-West take all ' + left + '.'
+      : c.n === left ? 'Your side takes all ' + left + '.'
+        : 'Your side takes ' + c.n + ', East-West take ' + (left - c.n) + '.';
+    $('claim-minus').disabled = c.pending || c.n <= 0;
+    $('claim-plus').disabled = c.pending || c.n >= left;
+    $('claim-go').disabled = c.pending;
+    $('claim-go').textContent = c.pending ? 'Checking\u2026' : c.n === 0 ? 'Concede' : 'Claim';
+    const m = $('claim-msg');
+    m.textContent = c.msg;
+    m.hidden = !c.msg;
+  }
+  function stepClaim(d) {
+    const c = S.claim;
+    if (!c || c.pending) return;
+    c.n = Math.max(0, Math.min(S.game.tricksLeft(), c.n + d));
+    c.msg = '';
+    renderClaim();
+  }
+  function acceptClaim(n) {
+    const g = S.game;
+    g.claim(g.turn, n);
+    S.claim = null;
+    S.hint = null;
+    closeSheet();
+    save();
+    advance();
+  }
+  function submitClaim() {
+    const g = S.game, c = S.claim;
+    if (!c || c.pending || c.key !== posKey() || g.phase !== 'play') return;
+    if (c.n === 0) { acceptClaim(0); return; }          // conceding is always accepted
+    c.pending = true; c.msg = '';
+    renderClaim();
+    const n = c.n, key = c.key;
+    let p;
+    try {
+      p = track(AIClient.checkClaim({ hands: g.rem.map(function (h) { return h.slice(); }), trump: g.contract.strain, leader: g.cur.leader, trick: g.cur.cards.slice(), seat: g.turn }));
+    } catch (e) { p = Promise.reject(e); }
+    p.then(function (r) {
+      if (S.claim !== c || key !== posKey()) return;
+      if (r && Number.isInteger(r.tricks) && n <= r.tricks) { acceptClaim(n); return; }
+      c.pending = false;
+      c.msg = r && Number.isInteger(r.tricks) ? 'East and West do not accept: they can still take more. Play on.' : 'East and West want to see it played out. Play on.';
+      renderClaim();
+    }, function (err) {
+      if (S.claim !== c || (err && err.cancelled)) return;
+      c.pending = false;
+      c.msg = 'East and West want to see it played out. Play on.';
+      renderClaim();
+    });
+  }
+
   // ---------- sheets ----------
   function openSheet(name) {
     S.sheet = name;
-    ['result', 'review', 'menu'].forEach(function (n) { $('sheet-' + n).hidden = n !== name; });
+    ['result', 'review', 'menu', 'claim'].forEach(function (n) { $('sheet-' + n).hidden = n !== name; });
+    if (name === 'claim') renderClaim();
     if (name === 'result') renderResult();
     if (name === 'review') renderReview();
     if (name === 'menu') renderMenu();
@@ -4607,8 +4908,9 @@ const AIClient = (function () {
     if (first && document.activeElement && document.activeElement !== document.body) { try { first.focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
   }
   function closeSheet() {
+    if (S.sheet === 'claim') S.claim = null;
     S.sheet = null;
-    ['result', 'review', 'menu'].forEach(function (n) { $('sheet-' + n).hidden = true; });
+    ['result', 'review', 'menu', 'claim'].forEach(function (n) { $('sheet-' + n).hidden = true; });
     $('m-confirm').hidden = true;
   }
 
@@ -4623,7 +4925,125 @@ const AIClient = (function () {
     else s = 'Down ' + (-r.made) + ': ' + r.declTricks + ' of the ' + need + ' tricks needed.';
     if (r.nsScore > 0) s += ' ' + r.nsScore + ' to your side.';
     else if (r.nsScore < 0) s += ' ' + (-r.nsScore) + ' to East-West.';
+    if (r.claim) s += ' ' + claimText(g) + '.';
     return s;
+  }
+
+  // ---------- review of your play: every card against perfect play, every call against the bots' system ----------
+  // Who played each card of this deal, replaying the log.
+  function playSeats(g) {
+    const seats = [], ps = E.publicPlayState(g.dealer, g.calls, g.plays);
+    if (!ps) return seats;
+    for (let i = 0; i < g.plays.length; i++) seats.push(ps.playedBy[g.plays[i]]);
+    return seats;
+  }
+  function trickWord(n) { return n === 1 ? 'trick' : 'tricks'; }
+  function claimText(g) {
+    const c = g.result.claim, who = humanSeatsOf(g.declarer).indexOf(c.seat) >= 0 ? 'You' : E.SEAT_NAME[c.seat];
+    if (c.tricks === 0) return who + ' conceded the last ' + (c.of === 1 ? 'trick' : c.of + ' tricks');
+    return who + ' claimed ' + (c.tricks === c.of ? (c.of === 1 ? 'the last trick' : 'all of the last ' + c.of + ' tricks') : c.tricks + ' of the last ' + c.of + ' ' + trickWord(c.of));
+  }
+  function renderPlayReview() {
+    const g = S.game, h = histEntry(g.board), body = $('yp-body');
+    if (!body) return;
+    const sec = $('yp');
+    if (!h) { sec.hidden = true; return; }
+    sec.hidden = false;
+    const rv = h.sig === playSig(g) ? h.review : null, parts = [];
+    if (!rv) {
+      if (CMP.busy && CMP.busy.kind === 'review' && CMP.busy.board === g.board) {
+        const pr = CMP.progress, done = pr && pr.total ? pr.done : 0, total = pr && pr.total ? pr.total : 0;
+        const w = el('div', 'cmp-wait');
+        w.appendChild(el('span', '', total ? 'Checking every card against perfect play: ' + done + ' of ' + total : 'Checking your calls and cards'));
+        const bar = el('div', 'cmp-bar'), f = el('div', 'cmp-bar-fill');
+        f.style.width = Math.round(100 * (0.05 + 0.95 * (total ? done / total : 0))) + '%';
+        bar.appendChild(f); w.appendChild(bar);
+        parts.push(w);
+      } else if (h.reviewFailed) parts.push(el('p', 'cmp-note', 'This deal could not be checked.'));
+      else parts.push(el('p', 'cmp-note', 'Waiting to check this deal.'));
+      fill(body, parts);
+      return;
+    }
+    const human = humanSeatsOf(g.declarer), seats = playSeats(g);
+    // the play
+    if (g.contract && rv.cost.length) {
+      const ours = (g.declarer & 1) === 0;
+      let mine = 0, partner = 0, theirs = 0, unknown = 0;
+      const slips = [];
+      rv.cost.forEach(function (c, i) {
+        if (c < 0) { unknown++; return; }
+        const seat = seats[i];
+        if (human.indexOf(seat) >= 0) { mine += c; if (c > 0) slips.push(i); }
+        else if ((seat & 1) === 0) partner += c;
+        else theirs += c;
+      });
+      const shortfall = rv.claim && Number.isInteger(rv.claim.could) ? Math.max(0, rv.claim.could - rv.claim.tricks) : 0;
+      const lines = [];
+      if (Number.isInteger(rv.start)) {
+        lines.push(ours ? 'With perfect play from the opening lead you make ' + rv.start + ' ' + trickWord(rv.start) + '; you took ' + g.result.declTricks + '.'
+          : 'With perfect play from the opening lead declarer makes ' + rv.start + ' ' + trickWord(rv.start) + '; they took ' + g.result.declTricks + '.');
+      }
+      const bits = [mine === 0 ? 'every card you played was a best card' : 'your cards cost ' + mine + ' ' + trickWord(mine)];
+      if (!ours) bits.push(partner === 0 ? 'North made no mistakes' : 'North\u2019s cost ' + partner);
+      bits.push(theirs === 0 ? (ours ? 'the defenders made no mistakes' : 'declarer made no mistakes') : (ours ? 'the defenders\u2019 mistakes gave back ' : 'declarer\u2019s mistakes gave back ') + theirs);
+      const sentence = bits.join(', ');
+      lines.push(sentence.charAt(0).toUpperCase() + sentence.slice(1) + '.');
+      const sum = el('p', 'yp-sum' + (mine + shortfall === 0 ? ' clean' : ''));
+      sum.id = 'yp-sum';
+      sum.textContent = lines.join(' ');
+      parts.push(sum);
+      if (slips.length) {
+        const list = el('div', 'yp-list');
+        slips.forEach(function (i) {
+          const row = el('div', 'yp-row');
+          row.appendChild(el('span', 'yp-trick', 'Trick ' + (Math.floor(i / 4) + 1)));
+          const what = el('span', 'yp-what');
+          what.appendChild(cardToken(g.plays[i]));
+          if (seats[i] === g.dummy) what.appendChild(el('span', 'yp-from', 'from dummy'));
+          row.appendChild(what);
+          const better = el('span', 'yp-best');
+          if (rv.best[i]) { better.appendChild(el('span', 'yp-lbl', 'Best')); rv.best[i].slice(0, 4).forEach(function (c) { better.appendChild(cardToken(c)); }); }
+          row.appendChild(better);
+          const cost = el('span', 'yp-cost', '\u2212' + rv.cost[i]);
+          cost.setAttribute('aria-label', 'cost ' + rv.cost[i] + ' ' + trickWord(rv.cost[i]));
+          row.appendChild(cost);
+          list.appendChild(row);
+        });
+        parts.push(list);
+      }
+      if (shortfall > 0) parts.push(el('p', 'cmp-note warn', 'Your claim gave away ' + shortfall + ' ' + trickWord(shortfall) + ': ' + rv.claim.could + ' were still there for your side.'));
+      if (unknown) parts.push(el('p', 'cmp-note', unknown + (unknown === 1 ? ' position was' : ' positions were') + ' too complex to check in the time allowed.'));
+      if (slips.length) parts.push(el('p', 'cmp-note', 'Perfect play means seeing all four hands, so some of these were guesses that strong players also get wrong.'));
+    }
+    // the bidding
+    const myCalls = g.calls.filter(function (c, i) { return ((g.dealer + i) & 3) === HUMAN; }).length;
+    if (myCalls) {
+      if (!rv.bids.length) parts.push(el('p', 'yp-bids clean', 'Your calls matched the bots\u2019 system at every turn.'));
+      else {
+        parts.push(el('p', 'yp-bids', myCalls === 1 ? 'The bots\u2019 system would have made a different call:'
+          : 'The bots\u2019 system would have called differently at ' + rv.bids.length + ' of your ' + myCalls + ' turns:'));
+        const list = el('div', 'yp-list');
+        rv.bids.forEach(function (b) {
+          const row = el('div', 'yp-bid');
+          const top = el('div', 'yp-bid-top');
+          top.appendChild(el('span', 'yp-lbl', 'You'));
+          top.appendChild(callChip(g.calls[b.i]));
+          top.appendChild(el('span', 'yp-lbl', 'Bots'));
+          top.appendChild(callChip(b.bot));
+          row.appendChild(top);
+          if (b.botText) { const t = el('p', 'yp-why'); t.appendChild(rich(b.botText)); row.appendChild(t); }
+          list.appendChild(row);
+        });
+        parts.push(list);
+      }
+    }
+    if (g.contract && g.tricks.length) {
+      const btn = el('button', 'btn yp-open', 'Card by card');
+      btn.type = 'button';
+      btn.addEventListener('click', function () { openSheet('review'); });
+      parts.push(btn);
+    }
+    fill(body, parts);
   }
   // Your table next to the bots' table for the deal on show.
   function compareWhy(h) {
@@ -4693,7 +5113,7 @@ const AIClient = (function () {
       parts.push(w);
     } else if (h.botsFailed) parts.push(el('p', 'cmp-note', 'The bots could not replay this deal.'));
     else parts.push(el('p', 'cmp-note', 'Waiting for the bots to replay this deal.'));
-    if (!h.passedOut && Number.isInteger(h.dd)) {
+    if (!h.passedOut && Number.isInteger(h.dd) && !h.review) {
       const d = h.tricks - h.dd, n = Math.abs(d), ours = (h.declarer & 1) === 0;
       let t = 'With perfect play by all four hands, declarer takes ' + h.dd + (h.dd === 1 ? ' trick' : ' tricks') + ' in ' + (ours ? 'your' : 'their') + ' contract';
       t += d === 0 ? ': exactly what happened.' : ours ? ': you took ' + n + (d > 0 ? ' more.' : ' fewer.') : d > 0 ? ': they took ' + n + ' more against you.' : ': you held them to ' + n + ' fewer.';
@@ -4713,6 +5133,7 @@ const AIClient = (function () {
     sc.textContent = signed(r.nsScore);
 
     renderCompare();
+    renderPlayReview();
 
     // board by board against the bots: your North-South score, theirs with the same cards, and the IMP difference
     const pad = $('pad');
@@ -4765,6 +5186,13 @@ const AIClient = (function () {
     $('rev-board').textContent = head.join(' · ');
     renderAuction($('rev-auction'));
     renderMeaning($('rev-meaning'));
+    const he = g.phase === 'over' ? histEntry(g.board) : null;
+    const rv = he && he.sig === playSig(g) ? he.review : null;
+    const human = humanSeatsOf(g.declarer);
+    if (rv) rv.bids.forEach(function (b) {
+      const chip = $('rev-auction').querySelector('[data-idx="' + b.i + '"]');
+      if (chip) { chip.classList.add('diff'); chip.title = 'The bots would call ' + E.callName(b.bot); }
+    });
     const list = $('rev-tricks');
     if (!g.tricks.length) { fill(list, [el('p', 'empty-note', 'No tricks have been played yet.')]); return; }
     const rows = [];
@@ -4777,14 +5205,21 @@ const AIClient = (function () {
       row.appendChild(el('span', 'tl-n', String(i + 1)));
       AU_ORDER.forEach(function (seat) {
         const card = t.cards[(seat - t.leader) & 3], s = E.cardSuit(card);
-        const cell = el('span', 'tl-c' + (seat === t.leader ? ' lead' : '') + (seat === t.winner ? ' win' : ''));
+        const pi = i * 4 + ((seat - t.leader) & 3), cost = rv ? rv.cost[pi] : 0;
+        const cell = el('span', 'tl-c' + (seat === t.leader ? ' lead' : '') + (seat === t.winner ? ' win' : '') +
+          (cost > 0 ? ' cost' + (human.indexOf(seat) >= 0 ? ' mine' : '') : ''));
         cell.appendChild(pip(s));
         cell.appendChild(el('b', '', E.rankText(E.cardRank(card))));
-        cell.setAttribute('aria-label', E.SEAT_NAME[seat] + ': ' + RANK_NAME[E.cardRank(card)] + ' of ' + SUIT_NAME[s] + (seat === t.winner ? ', wins' : ''));
+        if (cost > 0) cell.appendChild(el('i', 'tl-cost', '\u2212' + cost));
+        cell.setAttribute('aria-label', E.SEAT_NAME[seat] + ': ' + RANK_NAME[E.cardRank(card)] + ' of ' + SUIT_NAME[s] + (seat === t.winner ? ', wins' : '') +
+          (cost > 0 ? ', cost ' + cost + ' ' + trickWord(cost) + (rv.best[pi] ? '; best ' + rv.best[pi].map(E.cardText).join(' ') : '') : ''));
+        if (cost > 0 && rv.best[pi]) cell.title = 'Best: ' + rv.best[pi].map(E.cardText).join(' ');
         row.appendChild(cell);
       });
       rows.push(row);
     });
+    if (g.result && g.result.claim) rows.push(el('p', 'empty-note', claimText(g) + '.'));
+    if (rv && rv.cost.some(function (c) { return c > 0; })) rows.unshift(el('p', 'tl-legend', 'A number on a card is how many tricks it cost against perfect play. Yours are in red.'));
     fill(list, rows);
   }
 
@@ -4830,6 +5265,10 @@ const AIClient = (function () {
     $('btn-undo').addEventListener('click', doUndo);
     $('btn-hint').addEventListener('click', doHint);
     $('btn-review').addEventListener('click', function () { openSheet('review'); });
+    $('btn-claim').addEventListener('click', openClaim);
+    $('claim-minus').addEventListener('click', function () { stepClaim(-1); });
+    $('claim-plus').addEventListener('click', function () { stepClaim(1); });
+    $('claim-go').addEventListener('click', submitClaim);
     $('btn-menu').addEventListener('click', function () { openSheet('menu'); });
     $('btn-result').addEventListener('click', function () { openSheet('result'); });
     $('btn-next').addEventListener('click', nextDeal);
@@ -4898,7 +5337,7 @@ const AIClient = (function () {
         lastBid: g.auction.lastBid, lastBidder: g.auction.lastBidder, doubled: g.auction.doubled,
         humanToAct: humanToAct(), hold: !!S.hold, showAuction: S.showAuction, thinking: S.thinking,
         sheet: S.sheet, hint: S.hint, history: S.history.slice(), settings: Object.assign({}, S.settings),
-        usingWorker: AIClient.usingWorker(), comparing: !!CMP.busy, comparingKind: CMP.busy ? CMP.busy.kind : '', compareQueue: CMP.queue.length
+        usingWorker: AIClient.usingWorker(), claimOpen: !!S.claim, tricksLeft: g.tricksLeft(), comparing: !!CMP.busy, comparingKind: CMP.busy ? CMP.busy.kind : '', compareQueue: CMP.queue.length
       };
     }
   };
@@ -4911,5 +5350,6 @@ const AIClient = (function () {
 
 </script>
 
+<script>if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) { window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); }); }</script>
 </body>
 </html>

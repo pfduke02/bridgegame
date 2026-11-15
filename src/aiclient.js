@@ -52,7 +52,9 @@ const AIClient = (function () {
   let side = null, sideOk = true, sideJob = null;
   function sideLocal(p) {                                    // no worker available: run in short slices on the page
     let job;
-    try { job = BridgeEngine.aiStartJob(p.req); } catch (e) { sideJob = null; p.reject(e); return; }
+    // on the page itself a single position must not freeze the screen: analyse each one less deeply
+    const req = p.req.type === 'review' ? Object.assign({}, p.req, { maxNodes: 2500000 }) : p.req;
+    try { job = BridgeEngine.aiStartJob(req); } catch (e) { sideJob = null; p.reject(e); return; }
     (function pump() {
       if (p.cancelled) return;
       let done;
@@ -114,6 +116,8 @@ const AIClient = (function () {
     chooseCall: function (view) { return request({ type: 'call', view: view }); },
     // view.seat = the seat deciding (declarer decides for dummy). level: 1 quick .. 3 strongest. -> Promise<{card}>
     choosePlay: function (view, level) { return request({ type: 'play', view: view, level: level || 2 }); },
+    // {hands (remaining cards of all four), trump, leader, trick, seat} -> Promise<{tricks}>: most tricks seat's side can still take
+    checkClaim: function (pos) { return request(Object.assign({ type: 'claim' }, pos)); },
     // -> Promise<string[]>: plain-language meaning of each call in the auction
     explainAuction: function (dealer, vul, calls) {
       return request({ type: 'explain', dealer: dealer, vul: vul, calls: calls }).then(function (r) { return r.texts; });

@@ -2,6 +2,7 @@
 //   dist/artifact.html  page fragment for publishing (no doctype/html/head/body; the host adds them)
 //   dist/bridge.html    the same app as a complete standalone document (host it anywhere, add to home screen)
 //   docs/index.html     copy of the standalone app, committed so a static host can serve it
+//   docs/manifest.webmanifest, docs/sw.js   home-screen install and offline play for the hosted app
 const fs = require('fs');
 const path = require('path');
 
@@ -9,6 +10,17 @@ const ROOT = __dirname;
 const SRC = path.join(ROOT, 'src');
 const TITLE = 'Pocket Bridge';
 const read = function (f) { return fs.readFileSync(path.join(SRC, f), 'utf8'); };
+const ICONS = ['icon-180.png', 'icon-192.png', 'icon-512.png'];     // drawn by tools/make-icons.js
+const MANIFEST = {
+  name: TITLE, short_name: 'Bridge',
+  description: 'Contract bridge for one player: bid and play with a bot partner against two bot opponents.',
+  start_url: './', scope: './', display: 'standalone', orientation: 'portrait',
+  background_color: '#08251e', theme_color: '#0f3d31',
+  icons: [
+    { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
+    { src: 'icon-512.png', sizes: '512x512', type: 'image/png' }
+  ]
+};
 
 // Names the engine exposes to the page as BridgeEngine.<name> (only those that exist are exported).
 const EXPORTS = [
@@ -68,7 +80,11 @@ function build() {
     '<meta name="apple-mobile-web-app-capable" content="yes">',
     '<meta name="mobile-web-app-capable" content="yes">',
     '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">',
-    '<meta name="apple-mobile-web-app-title" content="' + TITLE + '">',
+    '<meta name="apple-mobile-web-app-title" content="Bridge">',
+    '<meta name="theme-color" content="#0f3d31">',
+    '<link rel="manifest" href="manifest.webmanifest">',
+    '<link rel="apple-touch-icon" href="icon-180.png">',
+    '<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">',
     '<title>' + TITLE + '</title>',
     // the same small reset the publishing host applies
     '<style>:root{padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px);box-sizing:border-box}' +
@@ -76,6 +92,9 @@ function build() {
     '</head>',
     '<body>',
     core,
+    // offline support once installed (not used by the published artifact, whose frame forbids service workers)
+    "<script>if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {" +
+      " window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); }); }</script>",
     '</body>',
     '</html>',
     ''
@@ -87,6 +106,12 @@ function build() {
   // the playable app, ready for static hosting (GitHub Pages can serve the docs/ folder)
   fs.mkdirSync(path.join(ROOT, 'docs'), { recursive: true });
   fs.writeFileSync(path.join(ROOT, 'docs', 'index.html'), standalone);
+  fs.writeFileSync(path.join(ROOT, 'docs', 'manifest.webmanifest'), JSON.stringify(MANIFEST, null, 2) + '\n');
+  // The service worker's version changes whenever the app does, so phones pick up each new build.
+  const version = require('crypto').createHash('sha256').update(standalone).update(JSON.stringify(MANIFEST))
+    .update(ICONS.map(function (f) { return fs.existsSync(path.join(ROOT, 'docs', f)) ? fs.readFileSync(path.join(ROOT, 'docs', f)) : ''; }).join('|'))
+    .digest('hex').slice(0, 12);
+  fs.writeFileSync(path.join(ROOT, 'docs', 'sw.js'), read('sw.js').replace('__VERSION__', version).replace('__FILES__', JSON.stringify(['./', 'manifest.webmanifest'].concat(ICONS))));
   console.log('built dist/artifact.html (' + (artifact.length / 1024).toFixed(0) + ' KB), dist/bridge.html and docs/index.html');
 }
 

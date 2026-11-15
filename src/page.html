@@ -54,6 +54,7 @@
       <div class="actions">
         <button type="button" class="act" id="btn-undo">Undo</button>
         <button type="button" class="act" id="btn-hint">Hint</button>
+        <button type="button" class="act" id="btn-claim" hidden>Claim</button>
         <button type="button" class="act" id="btn-review">Review</button>
       </div>
     </div>
@@ -101,6 +102,10 @@
         <h3 id="cmp-h">Same cards, four bots</h3>
         <div class="cmp-body" id="cmp-body"></div>
       </section>
+      <section class="yp" id="yp" aria-labelledby="yp-h" hidden>
+        <h3 id="yp-h">Your play</h3>
+        <div class="cmp-body" id="yp-body"></div>
+      </section>
       <section class="pad" aria-label="Board by board against the bots">
         <div class="pad-grid" id="pad"></div>
         <p class="pad-net" id="pad-net"></p>
@@ -138,6 +143,35 @@
         <h3>Tricks played</h3>
         <div class="trick-list" id="rev-tricks"></div>
       </section>
+    </div>
+  </div>
+</div>
+
+<div class="sheet" id="sheet-claim" role="dialog" aria-modal="true" aria-labelledby="claim-title" hidden>
+  <div class="sheet-panel claim-panel">
+    <div class="sheet-head">
+      <div class="head-text">
+        <span class="eyebrow">Skip the obvious tricks</span>
+        <h2 id="claim-title">Claim</h2>
+      </div>
+      <button type="button" class="icon-btn" data-close aria-label="Close">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="sheet-body">
+      <p class="claim-left" id="claim-left"></p>
+      <div class="stepper" role="group" aria-label="Tricks you claim">
+        <button type="button" class="step" id="claim-minus" aria-label="One trick fewer">&minus;</button>
+        <output class="step-n" id="claim-n" aria-live="polite"></output>
+        <button type="button" class="step" id="claim-plus" aria-label="One trick more">+</button>
+      </div>
+      <p class="claim-split" id="claim-split"></p>
+      <p class="claim-msg" id="claim-msg" role="alert" hidden></p>
+      <p class="cmp-note">East and West accept if those tricks are there with best play from here. Otherwise play goes on.</p>
+    </div>
+    <div class="sheet-foot">
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button type="button" class="btn primary" id="claim-go">Claim</button>
     </div>
   </div>
 </div>
@@ -202,6 +236,10 @@
           <ul>
             <li>You sit South. North is your partner; East and West are the opponents. All three are bots.</li>
             <li>Each deal is 13 cards a player. Dealer and vulnerability rotate with the board number.</li>
+          </ul>
+          <h4>Claiming</h4>
+          <ul>
+            <li>When the rest of the tricks are clear, tap Claim during the play and say how many your side takes. East and West accept if those tricks are there with best play; otherwise play goes on. Claiming none concedes the rest.</li>
           </ul>
           <h4>Bidding</h4>
           <ul>
