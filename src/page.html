@@ -106,6 +106,16 @@
         <h3 id="yp-h">Your play</h3>
         <div class="cmp-body" id="yp-body"></div>
       </section>
+      <section class="share" id="res-share" aria-labelledby="res-share-h" hidden>
+        <h3 id="res-share-h">Play it with a friend</h3>
+        <p class="share-what" id="res-share-what"></p>
+        <p class="cmp-note">Anyone who opens the link, or enters the code and board in the menu, gets the same cards. Then compare scores.</p>
+        <button type="button" class="btn share-go" id="res-share-go">Share this deal</button>
+        <div class="share-box" id="res-share-box" hidden>
+          <textarea readonly rows="3" aria-label="Link to share"></textarea>
+          <div class="share-row"><button type="button" class="btn" id="res-share-copy">Copy</button><span class="share-msg" role="status"></span></div>
+        </div>
+      </section>
       <section class="pad" aria-label="Board by board against the bots">
         <div class="pad-grid" id="pad"></div>
         <p class="pad-net" id="pad-net"></p>
@@ -176,6 +186,28 @@
   </div>
 </div>
 
+<div class="sheet" id="sheet-invite" role="dialog" aria-modal="true" aria-labelledby="inv-title" hidden>
+  <div class="sheet-panel claim-panel">
+    <div class="sheet-head">
+      <div class="head-text">
+        <span class="eyebrow">A shared deal</span>
+        <h2 id="inv-title"></h2>
+      </div>
+      <button type="button" class="icon-btn" data-close aria-label="Close">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="sheet-body">
+      <p class="claim-split">You get the same cards your friend had. Play it, then compare scores.</p>
+      <p class="cmp-note" id="inv-note"></p>
+    </div>
+    <div class="sheet-foot">
+      <button type="button" class="btn" data-close>Not now</button>
+      <button type="button" class="btn primary" id="inv-yes">Play it</button>
+    </div>
+  </div>
+</div>
+
 <div class="sheet" id="sheet-menu" role="dialog" aria-modal="true" aria-labelledby="menu-title" hidden>
   <div class="sheet-panel">
     <div class="sheet-head">
@@ -199,6 +231,26 @@
           <button type="button" class="btn danger" id="m-new-yes">Start new match</button>
         </div>
       </div>
+
+      <section class="share" id="m-share" aria-labelledby="m-share-h" hidden>
+        <h3 id="m-share-h">Play it with a friend</h3>
+        <p class="share-what" id="m-share-what"></p>
+        <p class="cmp-note">Anyone who opens the link, or enters the code and board in the menu, gets the same cards. Then compare scores.</p>
+        <button type="button" class="btn share-go" id="m-share-go">Share this deal</button>
+        <div class="share-box" id="m-share-box" hidden>
+          <textarea readonly rows="3" aria-label="Link to share"></textarea>
+          <div class="share-row"><button type="button" class="btn" id="m-share-copy">Copy</button><span class="share-msg" role="status"></span></div>
+        </div>
+      </section>
+      <section class="join" aria-labelledby="join-h">
+        <h3 id="join-h">Play a friend's deal</h3>
+        <form class="join-form" id="join-form" autocomplete="off">
+          <label class="join-field"><span>Match code</span><input id="join-code" name="code" type="text" maxlength="8" autocapitalize="characters" spellcheck="false" inputmode="text"></label>
+          <label class="join-field board"><span>Board</span><input id="join-board" name="board" type="number" min="1" max="999" value="1" inputmode="numeric"></label>
+          <button type="button" class="btn primary" id="join-go">Play</button>
+        </form>
+        <p class="claim-msg" id="join-msg" role="alert" hidden></p>
+      </section>
 
       <section class="settings">
         <h3>Settings</h3>
@@ -236,6 +288,10 @@
           <ul>
             <li>You sit South. North is your partner; East and West are the opponents. All three are bots.</li>
             <li>Each deal is 13 cards a player. Dealer and vulnerability rotate with the board number.</li>
+          </ul>
+          <h4>Playing with friends</h4>
+          <ul>
+            <li>Every match has a six-character code. The code and the board number fix the cards, so a friend who uses the same code plays the same deals. Share a deal from the result or the menu, or type a friend's code under "Play a friend's deal", then compare scores.</li>
           </ul>
           <h4>Claiming</h4>
           <ul>

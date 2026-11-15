@@ -428,6 +428,23 @@ body.four .pip.tx.s1 { color: var(--sky); }
 .tl-legend { font-size: 12px; color: var(--ink-dim); padding: 0 0 6px; }
 .bidcard.diff { box-shadow: 0 0 0 2px var(--bad); }
 
+/* sharing a deal and joining a friend's */
+.share, .join { display: flex; flex-direction: column; gap: 8px; }
+.share-what { font: 700 20px/1.1 var(--font-cond); letter-spacing: 0.06em; font-variant-numeric: tabular-nums; }
+.share-go { align-self: flex-start; flex: none; height: 40px; }
+.share-box { display: flex; flex-direction: column; gap: 6px; }
+.share-box textarea { width: 100%; box-sizing: border-box; resize: none; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.25); color: var(--ink); font: 14px/1.35 var(--font-ui); }
+.share-row { display: flex; align-items: center; gap: 10px; }
+.share-row .btn { flex: none; height: 38px; }
+.share-msg { font-size: 13px; color: var(--ink-dim); }
+.join-form { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap; }
+.join-field { display: flex; flex-direction: column; gap: 4px; flex: 1 1 130px; min-width: 0; font: 600 11px/1 var(--font-cond); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-dim); }
+.join-field.board { flex: 0 1 82px; }
+.join-field input { height: 42px; box-sizing: border-box; width: 100%; padding: 0 10px; border-radius: 8px; border: 1px solid var(--line); background: rgba(0, 0, 0, 0.25);
+  color: var(--ink); font: 700 18px/1 var(--font-cond); letter-spacing: 0.1em; text-transform: uppercase; }
+.join-form .btn { flex: 0 0 auto; height: 42px; }
+
 /* claim sheet */
 .claim-panel { max-width: 420px; }
 .claim-left, .claim-split { font: 500 15px/1.35 var(--font-ui); }

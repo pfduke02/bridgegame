@@ -49,6 +49,9 @@
     selLevel: null,       // level chosen in the bidding box
     texts: {},            // call index -> meaning
     claim: null,          // {key, n, pending, msg}: a claim being set up
+    match: null,          // this match's code: with a board number it fixes the cards
+    dealCode: null,       // the code that dealt the current cards (null for older random deals)
+    invite: null,         // {code, board}: a shared deal waiting for a yes
     meaning: null,        // {idx}: call whose meaning is on show
     shown: '',            // trick card last drawn (so only a new card animates in)
     sheet: null,
@@ -359,9 +362,10 @@
   }
 
   // ---------- deals, results, persistence ----------
-  function startDeal(deal) {
+  function startDeal(deal, code) {
     cancelBots();
     S.game = new E.Game(deal);
+    S.dealCode = code || null;                   // the match code that dealt these cards, if any
     S.recorded = false; S.texts = {}; S.meaning = null; S.selLevel = null; S.shown = '';
     closeSheet();
     save();
@@ -369,13 +373,99 @@
   }
   function nextDeal() {
     if (S.game.phase !== 'over') return;         // a second tap on the button must not skip a board
-    S.boardNo++; startDeal(E.newDeal(S.boardNo));
+    if (!S.match) S.match = E.newMatchCode();    // a game saved before matches had codes gets one now
+    S.boardNo++;
+    startDeal(E.dealForMatch(S.match, S.boardNo), S.match);
   }
   function replayDeal() {
     const g = S.game;
-    startDeal({ board: g.board, dealer: g.dealer, vul: g.vul, hands: g.hands });
+    startDeal({ board: g.board, dealer: g.dealer, vul: g.vul, hands: g.hands }, S.dealCode);
   }
-  function newMatch() { resetCompare(); S.boardNo = 1; S.history = []; startDeal(E.newDeal(1)); }
+  function newMatch() {
+    resetCompare();
+    S.match = E.newMatchCode(); S.boardNo = 1; S.history = [];
+    startDeal(E.dealForMatch(S.match, 1), S.match);
+  }
+  // Play board `board` of match `code`: a friend's deal. Another match starts a fresh score sheet.
+  function joinMatch(code, board) {
+    if (code !== S.match) { resetCompare(); S.history = []; }
+    S.match = code; S.boardNo = board;
+    startDeal(E.dealForMatch(code, board), code);
+  }
+
+  // ---------- sharing a deal ----------
+  const PUBLIC_URL = 'https://bridgegame.fishman-da7.workers.dev/';
+  // The address a friend can open: this page when it is the public site, else the public site.
+  function shareBase() {
+    let top = false;
+    try { top = window.top === window.self; } catch (e) { top = false; }
+    return top && location.protocol === 'https:' ? location.origin + location.pathname : PUBLIC_URL;
+  }
+  function shareLink() { return shareBase() + '#' + S.dealCode + '-' + S.game.board; }
+  function shareText() {
+    const g = S.game, r = g.result;
+    let s = 'Pocket Bridge, board ' + g.board + ' of match ' + S.dealCode + '.';
+    if (r && !r.passedOut) {
+      const c = g.contract, made = r.made === 0 ? 'made it exactly' : r.made > 0 ? 'made ' + r.made + (r.made === 1 ? ' overtrick' : ' overtricks') : 'went down ' + (-r.made);
+      const who = humanSeatsOf(g.declarer).indexOf(g.declarer) >= 0 ? 'We' : E.SEAT_NAME[g.declarer];
+      s += ' ' + who + ' played ' + c.level + ['\u2663', '\u2666', '\u2665', '\u2660', 'NT'][c.strain] + (c.doubled === 2 ? ' redoubled' : c.doubled ? ' doubled' : '') + ' and ' + made + ': ' + (r.nsScore > 0 ? '+' : '') + r.nsScore + ' to us.';
+    } else if (r && r.passedOut) s += ' We all passed it out.';
+    return s + ' Play the same cards:';
+  }
+  // Share with the phone's share sheet where there is one; otherwise show the link to copy.
+  function shareDeal(box) {
+    if (!S.dealCode) return;
+    const url = shareLink(), text = shareText();
+    const showBox = function () {
+      const area = box.querySelector('textarea');
+      area.value = text + ' ' + url;
+      box.hidden = false;
+      try { area.focus({ preventScroll: true }); area.select(); } catch (e) { /* ignore */ }
+    };
+    if (navigator.share) {
+      let p;
+      try { p = navigator.share({ title: 'Pocket Bridge', text: text, url: url }); } catch (e) { p = Promise.reject(e); }
+      Promise.resolve(p).catch(function (e) { if (!e || e.name !== 'AbortError') showBox(); });
+    } else showBox();
+  }
+  function copyShare(box) {
+    const area = box.querySelector('textarea'), msg = box.querySelector('.share-msg');
+    let settled = false;
+    const done = function (ok) {
+      if (settled) return;
+      settled = true;
+      msg.textContent = ok ? 'Copied.' : 'Select the text and copy it.';
+      if (!ok) { try { area.focus(); area.select(); } catch (e) { /* ignore */ } }
+    };
+    try { navigator.clipboard.writeText(area.value).then(function () { done(true); }, function () { done(false); }); } catch (e) { done(false); }
+    setTimeout(function () { done(false); }, 1500);   // some browsers never answer a clipboard request
+  }
+  // A link such as #K7P2QX-5 asks to play board 5 of match K7P2QX.
+  function readInvite() {
+    const m = /^#([A-Za-z0-9]{6})-(\d{1,3})$/.exec(location.hash || '');
+    if (!m) return;
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* ignore */ }
+    const code = E.normMatchCode(m[1]), board = Number(m[2]);
+    if (!code || board < 1 || board > 999) return;
+    if (code === S.dealCode && board === S.game.board) return;      // already on that deal
+    S.invite = { code: code, board: board };
+    openSheet('invite');
+  }
+  function renderInvite() {
+    const v = S.invite;
+    if (!v) return;
+    $('inv-title').textContent = 'Board ' + v.board + ' of match ' + v.code;
+    $('inv-note').textContent = v.code === S.match ? 'This is your own match: you jump to that board.'
+      : 'This replaces your current match (' + (S.match || 'unnamed') + ') and starts a new score sheet.';
+  }
+  function submitJoin() {
+    const code = E.normMatchCode($('join-code').value), board = Number($('join-board').value || 1);
+    const msg = $('join-msg');
+    if (!code) { msg.textContent = 'A match code is six letters and digits (no I, O, 0 or 1).'; msg.hidden = false; return; }
+    if (!Number.isInteger(board) || board < 1 || board > 999) { msg.textContent = 'Choose a board from 1 to 999.'; msg.hidden = false; return; }
+    msg.hidden = true;
+    joinMatch(code, board);
+  }
 
   function recordResult() {
     const g = S.game, r = g.result, c = g.contract;
@@ -478,7 +568,7 @@
   }
 
   function snapshot() {
-    return { v: 1, game: S.game.toJSON(), boardNo: S.boardNo, history: S.history, settings: S.settings, recorded: S.recorded, texts: S.texts };
+    return { v: 1, game: S.game.toJSON(), boardNo: S.boardNo, history: S.history, settings: S.settings, recorded: S.recorded, texts: S.texts, match: S.match, dealCode: S.dealCode };
   }
   function save() {
     try { localStorage.setItem(STORE_KEY, JSON.stringify(snapshot())); } catch (e) { /* storage unavailable: play on */ }
@@ -558,6 +648,10 @@
     S.history = Array.isArray(d.history) ? d.history.map(cleanEntry).filter(Boolean).slice(-HISTORY_MAX) : [];
     S.recorded = !!d.recorded;
     S.texts = d.texts && typeof d.texts === 'object' ? d.texts : {};
+    S.match = E.normMatchCode(d.match);
+    S.dealCode = E.normMatchCode(d.dealCode);
+    // a deal only counts as a match deal if the code really deals these cards
+    if (S.dealCode && JSON.stringify(E.dealForMatch(S.dealCode, g.board).hands.map(function (h) { return h.slice().sort(); })) !== JSON.stringify(g.hands.map(function (h) { return h.slice().sort(); }))) S.dealCode = null;
     const st = d.settings || {};
     if (PACE[st.speed]) S.settings.speed = st.speed;
     if (st.level === 1 || st.level === 2 || st.level === 3) S.settings.level = st.level;
@@ -1071,8 +1165,9 @@
   // ---------- sheets ----------
   function openSheet(name) {
     S.sheet = name;
-    ['result', 'review', 'menu', 'claim'].forEach(function (n) { $('sheet-' + n).hidden = n !== name; });
+    ['result', 'review', 'menu', 'claim', 'invite'].forEach(function (n) { $('sheet-' + n).hidden = n !== name; });
     if (name === 'claim') renderClaim();
+    if (name === 'invite') renderInvite();
     if (name === 'result') renderResult();
     if (name === 'review') renderReview();
     if (name === 'menu') renderMenu();
@@ -1081,8 +1176,10 @@
   }
   function closeSheet() {
     if (S.sheet === 'claim') S.claim = null;
+    if (S.sheet === 'invite') S.invite = null;
     S.sheet = null;
-    ['result', 'review', 'menu', 'claim'].forEach(function (n) { $('sheet-' + n).hidden = true; });
+    ['result', 'review', 'menu', 'claim', 'invite'].forEach(function (n) { $('sheet-' + n).hidden = true; });
+    ['res-share-box', 'm-share-box'].forEach(function (id) { const b = $(id); if (b) { b.hidden = true; b.querySelector('.share-msg').textContent = ''; } });
     $('m-confirm').hidden = true;
   }
 
@@ -1306,6 +1403,7 @@
 
     renderCompare();
     renderPlayReview();
+    renderShare('res');
 
     // board by board against the bots: your North-South score, theirs with the same cards, and the IMP difference
     const pad = $('pad');
@@ -1395,7 +1493,16 @@
     fill(list, rows);
   }
 
+  function renderShare(prefix) {
+    const sec = $(prefix + '-share');
+    if (!sec) return;
+    sec.hidden = !S.dealCode;
+    if (!S.dealCode) return;
+    $(prefix + '-share-what').textContent = 'Match ' + S.dealCode + ' \u00b7 board ' + S.game.board;
+  }
   function renderMenu() {
+    renderShare('m');
+    $('join-code').placeholder = S.match || 'K7P2QX';
     const pressed = function (id, v) {
       $(id).querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.v === String(v))); });
     };
@@ -1441,6 +1548,14 @@
     $('claim-minus').addEventListener('click', function () { stepClaim(-1); });
     $('claim-plus').addEventListener('click', function () { stepClaim(1); });
     $('claim-go').addEventListener('click', submitClaim);
+    $('res-share-go').addEventListener('click', function () { shareDeal($('res-share-box')); });
+    $('m-share-go').addEventListener('click', function () { shareDeal($('m-share-box')); });
+    $('res-share-copy').addEventListener('click', function () { copyShare($('res-share-box')); });
+    $('m-share-copy').addEventListener('click', function () { copyShare($('m-share-box')); });
+    $('join-go').addEventListener('click', submitJoin);
+    $('join-form').addEventListener('submit', function (ev) { ev.preventDefault(); submitJoin(); });
+    $('inv-yes').addEventListener('click', function () { const v = S.invite; if (v) { S.invite = null; joinMatch(v.code, v.board); } });
+    window.addEventListener('hashchange', readInvite);
     $('btn-menu').addEventListener('click', function () { openSheet('menu'); });
     $('btn-result').addEventListener('click', function () { openSheet('result'); });
     $('btn-next').addEventListener('click', nextDeal);
@@ -1490,11 +1605,15 @@
     const d = data && data.game ? data : (hot && hot.data && hot.data.game ? hot.data : load());
     let ok = false;
     if (d) { try { restore(d); ok = true; } catch (e) { ok = false; } }
-    if (!ok) { S.boardNo = 1; S.history = []; S.recorded = false; S.texts = {}; S.game = new E.Game(E.newDeal(1)); }
+    if (!ok) {
+      S.match = E.newMatchCode(); S.dealCode = S.match;
+      S.boardNo = 1; S.history = []; S.recorded = false; S.texts = {}; S.game = new E.Game(E.dealForMatch(S.match, 1));
+    }
     bind();
     layout();
     save();
     advance();
+    readInvite();
   }
 
   // read-only handle for tests and debugging
@@ -1509,7 +1628,7 @@
         lastBid: g.auction.lastBid, lastBidder: g.auction.lastBidder, doubled: g.auction.doubled,
         humanToAct: humanToAct(), hold: !!S.hold, showAuction: S.showAuction, thinking: S.thinking,
         sheet: S.sheet, hint: S.hint, history: S.history.slice(), settings: Object.assign({}, S.settings),
-        usingWorker: AIClient.usingWorker(), claimOpen: !!S.claim, tricksLeft: g.tricksLeft(), comparing: !!CMP.busy, comparingKind: CMP.busy ? CMP.busy.kind : '', compareQueue: CMP.queue.length
+        usingWorker: AIClient.usingWorker(), claimOpen: !!S.claim, tricksLeft: g.tricksLeft(), match: S.match, dealCode: S.dealCode, hands: g.hands, comparing: !!CMP.busy, comparingKind: CMP.busy ? CMP.busy.kind : '', compareQueue: CMP.queue.length
       };
     }
   };

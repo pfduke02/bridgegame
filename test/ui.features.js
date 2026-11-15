@@ -5,7 +5,7 @@ const fs = require('fs');
 const http = require('http');
 const { chromium } = require('playwright');
 const load = require('./load.js');
-const E = load(['Game', 'newDeal', 'mulberry32', 'aiRun', 'mkBid', 'callName', 'scoreContract', 'seatVul']);
+const E = load(['Game', 'newDeal', 'mulberry32', 'aiRun', 'mkBid', 'callName', 'scoreContract', 'seatVul', 'dealForMatch']);
 
 // Everything is served from docs/ over a local web server: the way a phone gets it, and file:// pages
 // in headless Chromium can read stale storage after a quick reload.
@@ -203,11 +203,87 @@ async function installed(browser) {
   await ctx.close();
 }
 
+async function friends(browser) {
+  const sorted = function (hands) { return JSON.stringify(hands.map(function (h) { return h.slice().sort(function (a, b) { return a - b; }); })); };
+  const fresh = async function (init) {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 760 }, hasTouch: true });
+    const page = await ctx.newPage();
+    const errors = [];
+    page.on('pageerror', function (e) { errors.push(String(e)); });
+    await page.route('**/fonts.googleapis.com/**', function (r) { r.fulfill({ status: 200, contentType: 'text/css', body: '' }); });
+    if (init) await page.addInitScript(init);
+    return { ctx: ctx, page: page, errors: errors };
+  };
+  // you: a new match gets a code, and its first board is dealt from it
+  const a = await fresh(function () { try { delete Navigator.prototype.share; } catch (e) { /* ignore */ } });
+  await a.page.goto(BASE);
+  await a.page.waitForFunction(function () { return window.PocketBridge && window.PocketBridge.state().board === 1; });
+  const sa = await state(a.page);
+  ok(/^[A-HJ-NP-Z2-9]{6}$/.test(sa.match) && sa.dealCode === sa.match, 'a new match gets a code (' + sa.match + ')');
+  ok(sorted(sa.hands) === sorted(E.dealForMatch(sa.match, 1).hands), 'board 1 is dealt from the match code');
+  await a.page.locator('#btn-menu').click();
+  ok((await a.page.locator('#m-share-what').textContent()) === 'Match ' + sa.match + ' \u00b7 board 1', 'the menu shows the match and board');
+  await a.page.locator('#m-share-go').click();
+  await a.page.waitForSelector('#m-share-box:not([hidden])');
+  const text = await a.page.locator('#m-share-box textarea').inputValue();
+  ok(text.indexOf('#' + sa.match + '-1') >= 0 && text.indexOf('https://') >= 0, 'without a share sheet the link is shown to copy: ' + text);
+  await a.page.locator('#m-share-copy').click();
+  const copied = await a.page.waitForFunction(function () { return /Copied|copy it/.test(document.querySelector('#m-share-box .share-msg').textContent); }, null, { timeout: 4000 }).then(function () { return true; }, function () { return false; });
+  ok(copied, 'Copy reports what happened');
+  // with a share sheet, the link goes to it
+  const a2 = await fresh(function () { Navigator.prototype.share = function (d) { window.__shared = d; return Promise.resolve(); }; });
+  await a2.page.goto(BASE);
+  await a2.page.waitForFunction(function () { return window.PocketBridge && window.PocketBridge.state().board === 1; });
+  await a2.page.locator('#btn-menu').click();
+  await a2.page.locator('#m-share-go').click();
+  const shared = await a2.page.evaluate(function () { return window.__shared; });
+  const s2 = await state(a2.page);
+  ok(shared && /#[A-Z2-9]{6}-1$/.test(shared.url) && shared.url.indexOf(s2.match) >= 0 && /board 1 of match/.test(shared.text), 'the phone\u2019s share sheet gets the link and a note');
+  ok(await a2.page.locator('#m-share-box').isHidden(), 'no copy box when the share sheet worked');
+  await a2.ctx.close();
+  // your friend opens the link and gets the same cards
+  const b = await fresh();
+  await b.page.goto(BASE + '#' + sa.match + '-1');
+  await b.page.waitForSelector('#sheet-invite:not([hidden])', { timeout: 15000 });
+  ok((await b.page.locator('#inv-title').textContent()) === 'Board 1 of match ' + sa.match, 'the link asks to play that board of that match');
+  await b.page.locator('#inv-yes').click();
+  await b.page.waitForFunction(function (c) { const s = window.PocketBridge.state(); return s.dealCode === c; }, sa.match);
+  const sb = await state(b.page);
+  ok(sb.board === 1 && sorted(sb.hands) === sorted(sa.hands), 'your friend gets exactly the same cards, dealer and board');
+  ok(sb.dealer === sa.dealer && sb.vul === sa.vul, 'same dealer and vulnerability');
+  ok(await b.page.evaluate(function () { return location.hash === ''; }), 'the link is cleared once used');
+  // ... and can pick any board by code
+  await b.page.locator('#btn-menu').click();
+  await b.page.locator('#join-code').fill('ab1');
+  await b.page.locator('#join-go').click();
+  ok(/six letters/.test(await b.page.locator('#join-msg').textContent()), 'a bad code is explained');
+  await b.page.locator('#join-code').fill(sa.match.toLowerCase().slice(0, 3) + '-' + sa.match.toLowerCase().slice(3));
+  await b.page.locator('#join-board').fill('4');
+  await b.page.locator('#join-go').click();
+  await b.page.waitForFunction(function () { return window.PocketBridge.state().board === 4; });
+  const sb4 = await state(b.page);
+  ok(sb4.match === sa.match && sorted(sb4.hands) === sorted(E.dealForMatch(sa.match, 4).hands), 'a typed code (any case, with a dash) deals that board');
+  await b.page.reload();
+  await b.page.waitForFunction(function () { return window.PocketBridge && window.PocketBridge.state().board === 4; });
+  ok(await b.page.locator('#sheet-invite').isHidden(), 'no invite after a reload');
+  ok(a.errors.length === 0 && b.errors.length === 0, 'no errors while sharing' + (a.errors.concat(b.errors).length ? ': ' + a.errors.concat(b.errors)[0] : ''));
+  await a.ctx.close(); await b.ctx.close();
+  // a game saved before matches had codes still loads; its next deal starts a match
+  const old = new E.Game(E.newDeal(3, E.mulberry32(5)));
+  const o = await open(browser, wrap(old));
+  await o.page.waitForFunction(function () { return window.PocketBridge && window.PocketBridge.state().board === 3; });
+  const so = await state(o.page);
+  ok(so.dealCode === null && so.match === null, 'an older saved deal loads without a code');
+  await o.page.locator('#btn-menu').click();
+  ok(await o.page.locator('#m-share').isHidden(), 'and is not offered for sharing (its cards came from no code)');
+  await o.ctx.close();
+}
+
 (async function () {
   const server = await serveDocs();
   BASE = 'http://127.0.0.1:' + server.address().port + '/';
   const browser = await chromium.launch();
-  for (const [name, fn] of [['claims', claims], ['review', review], ['installed', installed]]) {
+  for (const [name, fn] of [['claims', claims], ['review', review], ['installed', installed], ['friends', friends]]) {
     try { await fn(browser); } catch (e) { failed++; console.log('FAIL ' + name + ': ' + String(e && e.stack || e).split('\n').slice(0, 3).join(' / ')); }
   }
   await browser.close();

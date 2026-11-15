@@ -27,7 +27,7 @@ const EXPORTS = [
   'NT', 'PASS', 'DBL', 'RDBL', 'SUIT_SYM', 'STRAIN_TEXT', 'RANK_CH', 'SEAT_CH', 'SEAT_NAME',
   'cardSuit', 'cardRank', 'mkCard', 'rankText', 'cardText',
   'mkBid', 'isBid', 'bidLevel', 'bidStrain', 'callName', 'parseCall', 'callText',
-  'coreRandInt', 'mulberry32', 'dealCards', 'boardDealer', 'boardVul', 'seatVul', 'newDeal',
+  'coreRandInt', 'mulberry32', 'dealCards', 'boardDealer', 'boardVul', 'seatVul', 'newDeal', 'newMatchCode', 'normMatchCode', 'matchSeed', 'dealForMatch',
   'auctionInfo', 'isLegalCall', 'legalCalls', 'trickWinner', 'publicPlayState', 'scoreContract', 'impsFor', 'Game',
   'ddSolveBoard', 'ddSolve', 'ddReset', 'ddTable',
   'bidChooseCall', 'bidExplainAuction', 'BIDDING_NOTES', 'handFeatures',

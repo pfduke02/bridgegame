@@ -447,6 +447,23 @@ body.four .pip.tx.s1 { color: var(--sky); }
 .tl-legend { font-size: 12px; color: var(--ink-dim); padding: 0 0 6px; }
 .bidcard.diff { box-shadow: 0 0 0 2px var(--bad); }
 
+/* sharing a deal and joining a friend's */
+.share, .join { display: flex; flex-direction: column; gap: 8px; }
+.share-what { font: 700 20px/1.1 var(--font-cond); letter-spacing: 0.06em; font-variant-numeric: tabular-nums; }
+.share-go { align-self: flex-start; flex: none; height: 40px; }
+.share-box { display: flex; flex-direction: column; gap: 6px; }
+.share-box textarea { width: 100%; box-sizing: border-box; resize: none; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.25); color: var(--ink); font: 14px/1.35 var(--font-ui); }
+.share-row { display: flex; align-items: center; gap: 10px; }
+.share-row .btn { flex: none; height: 38px; }
+.share-msg { font-size: 13px; color: var(--ink-dim); }
+.join-form { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap; }
+.join-field { display: flex; flex-direction: column; gap: 4px; flex: 1 1 130px; min-width: 0; font: 600 11px/1 var(--font-cond); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-dim); }
+.join-field.board { flex: 0 1 82px; }
+.join-field input { height: 42px; box-sizing: border-box; width: 100%; padding: 0 10px; border-radius: 8px; border: 1px solid var(--line); background: rgba(0, 0, 0, 0.25);
+  color: var(--ink); font: 700 18px/1 var(--font-cond); letter-spacing: 0.1em; text-transform: uppercase; }
+.join-form .btn { flex: 0 0 auto; height: 42px; }
+
 /* claim sheet */
 .claim-panel { max-width: 420px; }
 .claim-left, .claim-split { font: 500 15px/1.35 var(--font-ui); }
@@ -611,6 +628,16 @@ body.four .pip.tx.s1 { color: var(--sky); }
         <h3 id="yp-h">Your play</h3>
         <div class="cmp-body" id="yp-body"></div>
       </section>
+      <section class="share" id="res-share" aria-labelledby="res-share-h" hidden>
+        <h3 id="res-share-h">Play it with a friend</h3>
+        <p class="share-what" id="res-share-what"></p>
+        <p class="cmp-note">Anyone who opens the link, or enters the code and board in the menu, gets the same cards. Then compare scores.</p>
+        <button type="button" class="btn share-go" id="res-share-go">Share this deal</button>
+        <div class="share-box" id="res-share-box" hidden>
+          <textarea readonly rows="3" aria-label="Link to share"></textarea>
+          <div class="share-row"><button type="button" class="btn" id="res-share-copy">Copy</button><span class="share-msg" role="status"></span></div>
+        </div>
+      </section>
       <section class="pad" aria-label="Board by board against the bots">
         <div class="pad-grid" id="pad"></div>
         <p class="pad-net" id="pad-net"></p>
@@ -681,6 +708,28 @@ body.four .pip.tx.s1 { color: var(--sky); }
   </div>
 </div>
 
+<div class="sheet" id="sheet-invite" role="dialog" aria-modal="true" aria-labelledby="inv-title" hidden>
+  <div class="sheet-panel claim-panel">
+    <div class="sheet-head">
+      <div class="head-text">
+        <span class="eyebrow">A shared deal</span>
+        <h2 id="inv-title"></h2>
+      </div>
+      <button type="button" class="icon-btn" data-close aria-label="Close">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="sheet-body">
+      <p class="claim-split">You get the same cards your friend had. Play it, then compare scores.</p>
+      <p class="cmp-note" id="inv-note"></p>
+    </div>
+    <div class="sheet-foot">
+      <button type="button" class="btn" data-close>Not now</button>
+      <button type="button" class="btn primary" id="inv-yes">Play it</button>
+    </div>
+  </div>
+</div>
+
 <div class="sheet" id="sheet-menu" role="dialog" aria-modal="true" aria-labelledby="menu-title" hidden>
   <div class="sheet-panel">
     <div class="sheet-head">
@@ -704,6 +753,26 @@ body.four .pip.tx.s1 { color: var(--sky); }
           <button type="button" class="btn danger" id="m-new-yes">Start new match</button>
         </div>
       </div>
+
+      <section class="share" id="m-share" aria-labelledby="m-share-h" hidden>
+        <h3 id="m-share-h">Play it with a friend</h3>
+        <p class="share-what" id="m-share-what"></p>
+        <p class="cmp-note">Anyone who opens the link, or enters the code and board in the menu, gets the same cards. Then compare scores.</p>
+        <button type="button" class="btn share-go" id="m-share-go">Share this deal</button>
+        <div class="share-box" id="m-share-box" hidden>
+          <textarea readonly rows="3" aria-label="Link to share"></textarea>
+          <div class="share-row"><button type="button" class="btn" id="m-share-copy">Copy</button><span class="share-msg" role="status"></span></div>
+        </div>
+      </section>
+      <section class="join" aria-labelledby="join-h">
+        <h3 id="join-h">Play a friend's deal</h3>
+        <form class="join-form" id="join-form" autocomplete="off">
+          <label class="join-field"><span>Match code</span><input id="join-code" name="code" type="text" maxlength="8" autocapitalize="characters" spellcheck="false" inputmode="text"></label>
+          <label class="join-field board"><span>Board</span><input id="join-board" name="board" type="number" min="1" max="999" value="1" inputmode="numeric"></label>
+          <button type="button" class="btn primary" id="join-go">Play</button>
+        </form>
+        <p class="claim-msg" id="join-msg" role="alert" hidden></p>
+      </section>
 
       <section class="settings">
         <h3>Settings</h3>
@@ -741,6 +810,10 @@ body.four .pip.tx.s1 { color: var(--sky); }
           <ul>
             <li>You sit South. North is your partner; East and West are the opponents. All three are bots.</li>
             <li>Each deal is 13 cards a player. Dealer and vulnerability rotate with the board number.</li>
+          </ul>
+          <h4>Playing with friends</h4>
+          <ul>
+            <li>Every match has a six-character code. The code and the board number fix the cards, so a friend who uses the same code plays the same deals. Share a deal from the result or the menu, or type a friend's code under "Play a friend's deal", then compare scores.</li>
           </ul>
           <h4>Claiming</h4>
           <ul>
@@ -878,6 +951,31 @@ function seatVul(vul, seat) { return (seat & 1) === 0 ? (vul & 1) !== 0 : (vul &
 function newDeal(board, rand) {
   return { board: board, dealer: boardDealer(board), vul: boardVul(board), hands: dealCards(rand) };
 }
+
+// ---------- shared matches ----------
+// A match code plus a board number fixes the cards, so friends who use the same code get the same
+// deals on every device. The dealing below must never change, or old codes would deal differently.
+const MATCH_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';     // no I, O, 0 or 1
+function newMatchCode() {
+  let s = '';
+  for (let i = 0; i < 6; i++) s += MATCH_ALPHABET[coreRandInt(32)];
+  return s;
+}
+// The code in canonical form (capitals, separators dropped), or null if it is not a valid code.
+function normMatchCode(s) {
+  const c = String(s === undefined || s === null ? '' : s).toUpperCase().replace(/[\s-]/g, '');
+  if (c.length !== 6) return null;
+  for (let i = 0; i < 6; i++) if (MATCH_ALPHABET.indexOf(c[i]) < 0) return null;
+  return c;
+}
+function matchSeed(code, board) {
+  const s = 'pocket-bridge/1/' + code + '/' + board;
+  let h = 0x811c9dc5;                                        // FNV-1a, then a final mix
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b); h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35); h ^= h >>> 16;
+  return h >>> 0;
+}
+function dealForMatch(code, board) { return newDeal(board, mulberry32(matchSeed(code, board))); }
 
 // ---------- auction ----------
 function auctionInfo(dealer, calls) {
@@ -3680,7 +3778,7 @@ function aiWorkerMain(scope) {
   };
 }
 
-return {NT: NT, PASS: PASS, DBL: DBL, RDBL: RDBL, SUIT_SYM: SUIT_SYM, STRAIN_TEXT: STRAIN_TEXT, RANK_CH: RANK_CH, SEAT_CH: SEAT_CH, SEAT_NAME: SEAT_NAME, cardSuit: cardSuit, cardRank: cardRank, mkCard: mkCard, rankText: rankText, cardText: cardText, mkBid: mkBid, isBid: isBid, bidLevel: bidLevel, bidStrain: bidStrain, callName: callName, parseCall: parseCall, callText: callText, coreRandInt: coreRandInt, mulberry32: mulberry32, dealCards: dealCards, boardDealer: boardDealer, boardVul: boardVul, seatVul: seatVul, newDeal: newDeal, auctionInfo: auctionInfo, isLegalCall: isLegalCall, legalCalls: legalCalls, trickWinner: trickWinner, publicPlayState: publicPlayState, scoreContract: scoreContract, impsFor: impsFor, Game: Game, ddSolveBoard: ddSolveBoard, ddSolve: ddSolve, ddReset: ddReset, ddTable: ddTable, bidChooseCall: bidChooseCall, bidExplainAuction: bidExplainAuction, BIDDING_NOTES: BIDDING_NOTES, handFeatures: handFeatures, playStartJob: playStartJob, aiStartJob: aiStartJob, aiRun: aiRun, aiWorkerMain: aiWorkerMain, aiViewLegalCards: aiViewLegalCards};
+return {NT: NT, PASS: PASS, DBL: DBL, RDBL: RDBL, SUIT_SYM: SUIT_SYM, STRAIN_TEXT: STRAIN_TEXT, RANK_CH: RANK_CH, SEAT_CH: SEAT_CH, SEAT_NAME: SEAT_NAME, cardSuit: cardSuit, cardRank: cardRank, mkCard: mkCard, rankText: rankText, cardText: cardText, mkBid: mkBid, isBid: isBid, bidLevel: bidLevel, bidStrain: bidStrain, callName: callName, parseCall: parseCall, callText: callText, coreRandInt: coreRandInt, mulberry32: mulberry32, dealCards: dealCards, boardDealer: boardDealer, boardVul: boardVul, seatVul: seatVul, newDeal: newDeal, newMatchCode: newMatchCode, normMatchCode: normMatchCode, matchSeed: matchSeed, dealForMatch: dealForMatch, auctionInfo: auctionInfo, isLegalCall: isLegalCall, legalCalls: legalCalls, trickWinner: trickWinner, publicPlayState: publicPlayState, scoreContract: scoreContract, impsFor: impsFor, Game: Game, ddSolveBoard: ddSolveBoard, ddSolve: ddSolve, ddReset: ddReset, ddTable: ddTable, bidChooseCall: bidChooseCall, bidExplainAuction: bidExplainAuction, BIDDING_NOTES: BIDDING_NOTES, handFeatures: handFeatures, playStartJob: playStartJob, aiStartJob: aiStartJob, aiRun: aiRun, aiWorkerMain: aiWorkerMain, aiViewLegalCards: aiViewLegalCards};
 })();
 if (typeof WorkerGlobalScope !== 'undefined' && typeof self !== 'undefined' && self instanceof WorkerGlobalScope) BridgeEngine.aiWorkerMain(self);
 </script>
@@ -3877,6 +3975,9 @@ const AIClient = (function () {
     selLevel: null,       // level chosen in the bidding box
     texts: {},            // call index -> meaning
     claim: null,          // {key, n, pending, msg}: a claim being set up
+    match: null,          // this match's code: with a board number it fixes the cards
+    dealCode: null,       // the code that dealt the current cards (null for older random deals)
+    invite: null,         // {code, board}: a shared deal waiting for a yes
     meaning: null,        // {idx}: call whose meaning is on show
     shown: '',            // trick card last drawn (so only a new card animates in)
     sheet: null,
@@ -4187,9 +4288,10 @@ const AIClient = (function () {
   }
 
   // ---------- deals, results, persistence ----------
-  function startDeal(deal) {
+  function startDeal(deal, code) {
     cancelBots();
     S.game = new E.Game(deal);
+    S.dealCode = code || null;                   // the match code that dealt these cards, if any
     S.recorded = false; S.texts = {}; S.meaning = null; S.selLevel = null; S.shown = '';
     closeSheet();
     save();
@@ -4197,13 +4299,99 @@ const AIClient = (function () {
   }
   function nextDeal() {
     if (S.game.phase !== 'over') return;         // a second tap on the button must not skip a board
-    S.boardNo++; startDeal(E.newDeal(S.boardNo));
+    if (!S.match) S.match = E.newMatchCode();    // a game saved before matches had codes gets one now
+    S.boardNo++;
+    startDeal(E.dealForMatch(S.match, S.boardNo), S.match);
   }
   function replayDeal() {
     const g = S.game;
-    startDeal({ board: g.board, dealer: g.dealer, vul: g.vul, hands: g.hands });
+    startDeal({ board: g.board, dealer: g.dealer, vul: g.vul, hands: g.hands }, S.dealCode);
   }
-  function newMatch() { resetCompare(); S.boardNo = 1; S.history = []; startDeal(E.newDeal(1)); }
+  function newMatch() {
+    resetCompare();
+    S.match = E.newMatchCode(); S.boardNo = 1; S.history = [];
+    startDeal(E.dealForMatch(S.match, 1), S.match);
+  }
+  // Play board `board` of match `code`: a friend's deal. Another match starts a fresh score sheet.
+  function joinMatch(code, board) {
+    if (code !== S.match) { resetCompare(); S.history = []; }
+    S.match = code; S.boardNo = board;
+    startDeal(E.dealForMatch(code, board), code);
+  }
+
+  // ---------- sharing a deal ----------
+  const PUBLIC_URL = 'https://bridgegame.fishman-da7.workers.dev/';
+  // The address a friend can open: this page when it is the public site, else the public site.
+  function shareBase() {
+    let top = false;
+    try { top = window.top === window.self; } catch (e) { top = false; }
+    return top && location.protocol === 'https:' ? location.origin + location.pathname : PUBLIC_URL;
+  }
+  function shareLink() { return shareBase() + '#' + S.dealCode + '-' + S.game.board; }
+  function shareText() {
+    const g = S.game, r = g.result;
+    let s = 'Pocket Bridge, board ' + g.board + ' of match ' + S.dealCode + '.';
+    if (r && !r.passedOut) {
+      const c = g.contract, made = r.made === 0 ? 'made it exactly' : r.made > 0 ? 'made ' + r.made + (r.made === 1 ? ' overtrick' : ' overtricks') : 'went down ' + (-r.made);
+      const who = humanSeatsOf(g.declarer).indexOf(g.declarer) >= 0 ? 'We' : E.SEAT_NAME[g.declarer];
+      s += ' ' + who + ' played ' + c.level + ['\u2663', '\u2666', '\u2665', '\u2660', 'NT'][c.strain] + (c.doubled === 2 ? ' redoubled' : c.doubled ? ' doubled' : '') + ' and ' + made + ': ' + (r.nsScore > 0 ? '+' : '') + r.nsScore + ' to us.';
+    } else if (r && r.passedOut) s += ' We all passed it out.';
+    return s + ' Play the same cards:';
+  }
+  // Share with the phone's share sheet where there is one; otherwise show the link to copy.
+  function shareDeal(box) {
+    if (!S.dealCode) return;
+    const url = shareLink(), text = shareText();
+    const showBox = function () {
+      const area = box.querySelector('textarea');
+      area.value = text + ' ' + url;
+      box.hidden = false;
+      try { area.focus({ preventScroll: true }); area.select(); } catch (e) { /* ignore */ }
+    };
+    if (navigator.share) {
+      let p;
+      try { p = navigator.share({ title: 'Pocket Bridge', text: text, url: url }); } catch (e) { p = Promise.reject(e); }
+      Promise.resolve(p).catch(function (e) { if (!e || e.name !== 'AbortError') showBox(); });
+    } else showBox();
+  }
+  function copyShare(box) {
+    const area = box.querySelector('textarea'), msg = box.querySelector('.share-msg');
+    let settled = false;
+    const done = function (ok) {
+      if (settled) return;
+      settled = true;
+      msg.textContent = ok ? 'Copied.' : 'Select the text and copy it.';
+      if (!ok) { try { area.focus(); area.select(); } catch (e) { /* ignore */ } }
+    };
+    try { navigator.clipboard.writeText(area.value).then(function () { done(true); }, function () { done(false); }); } catch (e) { done(false); }
+    setTimeout(function () { done(false); }, 1500);   // some browsers never answer a clipboard request
+  }
+  // A link such as #K7P2QX-5 asks to play board 5 of match K7P2QX.
+  function readInvite() {
+    const m = /^#([A-Za-z0-9]{6})-(\d{1,3})$/.exec(location.hash || '');
+    if (!m) return;
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* ignore */ }
+    const code = E.normMatchCode(m[1]), board = Number(m[2]);
+    if (!code || board < 1 || board > 999) return;
+    if (code === S.dealCode && board === S.game.board) return;      // already on that deal
+    S.invite = { code: code, board: board };
+    openSheet('invite');
+  }
+  function renderInvite() {
+    const v = S.invite;
+    if (!v) return;
+    $('inv-title').textContent = 'Board ' + v.board + ' of match ' + v.code;
+    $('inv-note').textContent = v.code === S.match ? 'This is your own match: you jump to that board.'
+      : 'This replaces your current match (' + (S.match || 'unnamed') + ') and starts a new score sheet.';
+  }
+  function submitJoin() {
+    const code = E.normMatchCode($('join-code').value), board = Number($('join-board').value || 1);
+    const msg = $('join-msg');
+    if (!code) { msg.textContent = 'A match code is six letters and digits (no I, O, 0 or 1).'; msg.hidden = false; return; }
+    if (!Number.isInteger(board) || board < 1 || board > 999) { msg.textContent = 'Choose a board from 1 to 999.'; msg.hidden = false; return; }
+    msg.hidden = true;
+    joinMatch(code, board);
+  }
 
   function recordResult() {
     const g = S.game, r = g.result, c = g.contract;
@@ -4306,7 +4494,7 @@ const AIClient = (function () {
   }
 
   function snapshot() {
-    return { v: 1, game: S.game.toJSON(), boardNo: S.boardNo, history: S.history, settings: S.settings, recorded: S.recorded, texts: S.texts };
+    return { v: 1, game: S.game.toJSON(), boardNo: S.boardNo, history: S.history, settings: S.settings, recorded: S.recorded, texts: S.texts, match: S.match, dealCode: S.dealCode };
   }
   function save() {
     try { localStorage.setItem(STORE_KEY, JSON.stringify(snapshot())); } catch (e) { /* storage unavailable: play on */ }
@@ -4386,6 +4574,10 @@ const AIClient = (function () {
     S.history = Array.isArray(d.history) ? d.history.map(cleanEntry).filter(Boolean).slice(-HISTORY_MAX) : [];
     S.recorded = !!d.recorded;
     S.texts = d.texts && typeof d.texts === 'object' ? d.texts : {};
+    S.match = E.normMatchCode(d.match);
+    S.dealCode = E.normMatchCode(d.dealCode);
+    // a deal only counts as a match deal if the code really deals these cards
+    if (S.dealCode && JSON.stringify(E.dealForMatch(S.dealCode, g.board).hands.map(function (h) { return h.slice().sort(); })) !== JSON.stringify(g.hands.map(function (h) { return h.slice().sort(); }))) S.dealCode = null;
     const st = d.settings || {};
     if (PACE[st.speed]) S.settings.speed = st.speed;
     if (st.level === 1 || st.level === 2 || st.level === 3) S.settings.level = st.level;
@@ -4899,8 +5091,9 @@ const AIClient = (function () {
   // ---------- sheets ----------
   function openSheet(name) {
     S.sheet = name;
-    ['result', 'review', 'menu', 'claim'].forEach(function (n) { $('sheet-' + n).hidden = n !== name; });
+    ['result', 'review', 'menu', 'claim', 'invite'].forEach(function (n) { $('sheet-' + n).hidden = n !== name; });
     if (name === 'claim') renderClaim();
+    if (name === 'invite') renderInvite();
     if (name === 'result') renderResult();
     if (name === 'review') renderReview();
     if (name === 'menu') renderMenu();
@@ -4909,8 +5102,10 @@ const AIClient = (function () {
   }
   function closeSheet() {
     if (S.sheet === 'claim') S.claim = null;
+    if (S.sheet === 'invite') S.invite = null;
     S.sheet = null;
-    ['result', 'review', 'menu', 'claim'].forEach(function (n) { $('sheet-' + n).hidden = true; });
+    ['result', 'review', 'menu', 'claim', 'invite'].forEach(function (n) { $('sheet-' + n).hidden = true; });
+    ['res-share-box', 'm-share-box'].forEach(function (id) { const b = $(id); if (b) { b.hidden = true; b.querySelector('.share-msg').textContent = ''; } });
     $('m-confirm').hidden = true;
   }
 
@@ -5134,6 +5329,7 @@ const AIClient = (function () {
 
     renderCompare();
     renderPlayReview();
+    renderShare('res');
 
     // board by board against the bots: your North-South score, theirs with the same cards, and the IMP difference
     const pad = $('pad');
@@ -5223,7 +5419,16 @@ const AIClient = (function () {
     fill(list, rows);
   }
 
+  function renderShare(prefix) {
+    const sec = $(prefix + '-share');
+    if (!sec) return;
+    sec.hidden = !S.dealCode;
+    if (!S.dealCode) return;
+    $(prefix + '-share-what').textContent = 'Match ' + S.dealCode + ' \u00b7 board ' + S.game.board;
+  }
   function renderMenu() {
+    renderShare('m');
+    $('join-code').placeholder = S.match || 'K7P2QX';
     const pressed = function (id, v) {
       $(id).querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.v === String(v))); });
     };
@@ -5269,6 +5474,14 @@ const AIClient = (function () {
     $('claim-minus').addEventListener('click', function () { stepClaim(-1); });
     $('claim-plus').addEventListener('click', function () { stepClaim(1); });
     $('claim-go').addEventListener('click', submitClaim);
+    $('res-share-go').addEventListener('click', function () { shareDeal($('res-share-box')); });
+    $('m-share-go').addEventListener('click', function () { shareDeal($('m-share-box')); });
+    $('res-share-copy').addEventListener('click', function () { copyShare($('res-share-box')); });
+    $('m-share-copy').addEventListener('click', function () { copyShare($('m-share-box')); });
+    $('join-go').addEventListener('click', submitJoin);
+    $('join-form').addEventListener('submit', function (ev) { ev.preventDefault(); submitJoin(); });
+    $('inv-yes').addEventListener('click', function () { const v = S.invite; if (v) { S.invite = null; joinMatch(v.code, v.board); } });
+    window.addEventListener('hashchange', readInvite);
     $('btn-menu').addEventListener('click', function () { openSheet('menu'); });
     $('btn-result').addEventListener('click', function () { openSheet('result'); });
     $('btn-next').addEventListener('click', nextDeal);
@@ -5318,11 +5531,15 @@ const AIClient = (function () {
     const d = data && data.game ? data : (hot && hot.data && hot.data.game ? hot.data : load());
     let ok = false;
     if (d) { try { restore(d); ok = true; } catch (e) { ok = false; } }
-    if (!ok) { S.boardNo = 1; S.history = []; S.recorded = false; S.texts = {}; S.game = new E.Game(E.newDeal(1)); }
+    if (!ok) {
+      S.match = E.newMatchCode(); S.dealCode = S.match;
+      S.boardNo = 1; S.history = []; S.recorded = false; S.texts = {}; S.game = new E.Game(E.dealForMatch(S.match, 1));
+    }
     bind();
     layout();
     save();
     advance();
+    readInvite();
   }
 
   // read-only handle for tests and debugging
@@ -5337,7 +5554,7 @@ const AIClient = (function () {
         lastBid: g.auction.lastBid, lastBidder: g.auction.lastBidder, doubled: g.auction.doubled,
         humanToAct: humanToAct(), hold: !!S.hold, showAuction: S.showAuction, thinking: S.thinking,
         sheet: S.sheet, hint: S.hint, history: S.history.slice(), settings: Object.assign({}, S.settings),
-        usingWorker: AIClient.usingWorker(), claimOpen: !!S.claim, tricksLeft: g.tricksLeft(), comparing: !!CMP.busy, comparingKind: CMP.busy ? CMP.busy.kind : '', compareQueue: CMP.queue.length
+        usingWorker: AIClient.usingWorker(), claimOpen: !!S.claim, tricksLeft: g.tricksLeft(), match: S.match, dealCode: S.dealCode, hands: g.hands, comparing: !!CMP.busy, comparingKind: CMP.busy ? CMP.busy.kind : '', compareQueue: CMP.queue.length
       };
     }
   };

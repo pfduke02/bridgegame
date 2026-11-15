@@ -2,7 +2,7 @@
 const load = require('./load.js');
 const E = load(['Game', 'newDeal', 'dealCards', 'auctionInfo', 'isLegalCall', 'legalCalls', 'parseCall', 'callName',
   'scoreContract', 'trickWinner', 'mkCard', 'cardSuit', 'cardRank', 'mulberry32', 'boardDealer', 'boardVul',
-  'publicPlayState', 'PASS', 'DBL', 'RDBL', 'mkBid', 'NT', 'seatVul', 'impsFor']);
+  'publicPlayState', 'PASS', 'DBL', 'RDBL', 'mkBid', 'NT', 'seatVul', 'impsFor', 'newMatchCode', 'normMatchCode', 'dealForMatch', 'matchSeed']);
 
 let failed = 0, checks = 0;
 function eq(actual, expected, label) {
@@ -203,6 +203,26 @@ eq(E.trickWinner(0, [c(D, 4), c(C, 12), c(S, 12), c(H, 12)], C), 1, 'only trump 
   }
   eq(problems, 0, 'random playthrough invariants');
   console.log('playthroughs: ' + played + ' played, ' + passedOut + ' passed out');
+}
+
+// ---- shared matches: a code and a board number always give the same cards ----
+{
+  const str = function (h) { return [3, 2, 1, 0].map(function (s) { return h.filter(function (c) { return E.cardSuit(c) === s; }).map(function (c) { return '23456789TJQKA'[E.cardRank(c)]; }).join('') || '-'; }).join('.'); };
+  const d = E.dealForMatch('K7P2QX', 5);
+  // known answer: if this changes, every shared link would deal different cards
+  eq(E.matchSeed('K7P2QX', 5), 1935139481, 'match seed is fixed');
+  eq([d.board, d.dealer, d.vul, d.hands.map(str).join(' ')], [5, 0, 1, '32.QT3.T5.986542 T9.KJ8.AKJ83.KJ3 AQJ.A6.Q9742.AQ7 K87654.97542.6.T'], 'match K7P2QX board 5 deals the same cards as always');
+  eq(JSON.stringify(E.dealForMatch('K7P2QX', 5)), JSON.stringify(d), 'dealing a match board is repeatable');
+  eq(JSON.stringify(E.dealForMatch('K7P2QX', 6).hands) !== JSON.stringify(d.hands), true, 'the next board has different cards');
+  eq(JSON.stringify(E.dealForMatch('K7P2QY', 5).hands) !== JSON.stringify(d.hands), true, 'another code has different cards');
+  eq([E.normMatchCode(' k7p2-qx '), E.normMatchCode('K7P2QX'), E.normMatchCode('K7P2QO'), E.normMatchCode('K7P2Q1'), E.normMatchCode('K7P2Q'), E.normMatchCode('K7P2QXX'), E.normMatchCode(null)],
+    ['K7P2QX', 'K7P2QX', null, null, null, null, null], 'match codes are read leniently and checked strictly');
+  let okCodes = true;
+  for (let i = 0; i < 500; i++) { const c = E.newMatchCode(); if (E.normMatchCode(c) !== c) okCodes = false; }
+  eq(okCodes, true, 'new match codes are always valid');
+  let seen = new Set(), dupe = false;
+  for (let b = 1; b <= 400; b++) { const k = JSON.stringify(E.dealForMatch('ABCDEF', b).hands); if (seen.has(k)) dupe = true; seen.add(k); }
+  eq(dupe, false, '400 boards of one match are all different deals');
 }
 
 // ---- restoring a saved game: every logged call and card is replayed under the rules ----

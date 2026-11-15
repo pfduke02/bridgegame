@@ -8,6 +8,10 @@ After every deal, four bots bid and play the **same cards** in the background. T
 puts your table next to theirs (contract, tricks, score) and scores the difference in IMPs, the
 way two tables are compared in duplicate bridge.
 
+To play the same deals as a friend, share a deal from the result panel or the menu, or type a
+friend's match code. Every match has a six-character code, and the code plus the board number fix
+the cards, so both of you play identical boards and can compare scores.
+
 The result panel also reviews your own play: every card is checked against perfect play with all
 four hands known, so you see which cards cost tricks and what the best card was, and every call
 is compared with what the bots' system would have bid. During the play you can claim the

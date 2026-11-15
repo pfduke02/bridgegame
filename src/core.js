@@ -98,6 +98,31 @@ function newDeal(board, rand) {
   return { board: board, dealer: boardDealer(board), vul: boardVul(board), hands: dealCards(rand) };
 }
 
+// ---------- shared matches ----------
+// A match code plus a board number fixes the cards, so friends who use the same code get the same
+// deals on every device. The dealing below must never change, or old codes would deal differently.
+const MATCH_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';     // no I, O, 0 or 1
+function newMatchCode() {
+  let s = '';
+  for (let i = 0; i < 6; i++) s += MATCH_ALPHABET[coreRandInt(32)];
+  return s;
+}
+// The code in canonical form (capitals, separators dropped), or null if it is not a valid code.
+function normMatchCode(s) {
+  const c = String(s === undefined || s === null ? '' : s).toUpperCase().replace(/[\s-]/g, '');
+  if (c.length !== 6) return null;
+  for (let i = 0; i < 6; i++) if (MATCH_ALPHABET.indexOf(c[i]) < 0) return null;
+  return c;
+}
+function matchSeed(code, board) {
+  const s = 'pocket-bridge/1/' + code + '/' + board;
+  let h = 0x811c9dc5;                                        // FNV-1a, then a final mix
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b); h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35); h ^= h >>> 16;
+  return h >>> 0;
+}
+function dealForMatch(code, board) { return newDeal(board, mulberry32(matchSeed(code, board))); }
+
 // ---------- auction ----------
 function auctionInfo(dealer, calls) {
   let lastBid = -1, lastBidder = -1, doubled = 0, passes = 0;

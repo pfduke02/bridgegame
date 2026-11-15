@@ -191,5 +191,22 @@ const C = function (n, k) { if (k < 0 || k > n) return 0; let r = 1; for (let i 
   report('dealing: consecutive deals are unrelated', Math.abs(zs) < 4 && Math.abs(r * Math.sqrt(pairs)) < 4,
     'a card repeats its seat ' + (100 * sameSeat / n2).toFixed(3) + '% of the time (expected 25%), z = ' + zs.toFixed(2) + '; point-count correlation ' + r.toFixed(4));
 }
+// ---- shared-match dealing is as fair as the ordinary dealing ----
+{
+  const E2 = load(['dealForMatch', 'newMatchCode', 'cardRank', 'cardSuit']);
+  const M = Math.min(N, 100000), seatOf = new Int32Array(52 * 4), hcpHist = new Int32Array(38);
+  const codes = []; for (let i = 0; i < 200; i++) codes.push(E2.newMatchCode());
+  for (let t = 0; t < M; t++) {
+    const hands = E2.dealForMatch(codes[t % codes.length], 1 + Math.floor(t / codes.length)).hands;
+    for (let s = 0; s < 4; s++) for (const c of hands[s]) seatOf[c * 4 + s]++;
+    let h = 0; for (const c of hands[0]) h += Math.max(0, E2.cardRank(c) - 8); hcpHist[h]++;
+  }
+  let chi = 0;
+  for (let i = 0; i < 208; i++) chi += Math.pow(seatOf[i] - M / 4, 2) / (M / 4);
+  const z = zOfChi(chi, 156);
+  let mean = 0; for (let h = 0; h <= 37; h++) mean += h * hcpHist[h] / M;
+  report('shared matches: ' + M + ' deals from 200 codes x ' + Math.ceil(M / 200) + ' boards are fair', Math.abs(z) < 4 && Math.abs(mean - 10) < 0.06,
+    'card-to-seat chi-square ' + chi.toFixed(1) + ' on 156 df, z = ' + z.toFixed(2) + '; mean points ' + mean.toFixed(3));
+}
 console.log(failed ? 'FAILED: ' + failed : 'ALL PASSED');
 process.exit(failed ? 1 : 0);
