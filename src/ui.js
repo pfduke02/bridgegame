@@ -661,8 +661,7 @@
   // ---------- sizing ----------
   function layout() {
     const app = $('app');
-    const cs = getComputedStyle(app);
-    const W = app.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const W = $('table').clientWidth;            // the full width, or the left half on a landscape phone
     const H = app.clientHeight;
     if (!(W > 0) || !(H > 0)) return;
     let cw = Math.round(Math.min(78, Math.max(36, W * 0.165)));

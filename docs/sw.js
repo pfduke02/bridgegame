@@ -1,6 +1,6 @@
 // Service worker for the installed app: keeps the game on the phone so it opens without a connection.
 // build.js fills in the version (a hash of the build) and the file list.
-const VERSION = 'c871964a3b47';
+const VERSION = '6a1f07e469a3';
 const APP = 'pocket-bridge-app-' + VERSION;
 const FONTS = 'pocket-bridge-fonts';
 const FILES = ["./","manifest.webmanifest","icon-180.png","icon-192.png","icon-512.png"];
